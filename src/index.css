@@ -2,7 +2,7 @@
 
 @layer base {
   :root {
-    font-family: 'Outfit', 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Outfit', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
   html,
@@ -17,10 +17,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Hide scrollbars cleanly where desired */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Custom sleek scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -28,7 +37,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 9999px;
 }
 
@@ -36,13 +45,70 @@
   background: rgba(255, 255, 255, 0.36);
 }
 
-/* Guinea pig animations */
+/* Subtle UI drawer / sheet / whisper bubble animations */
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes ui-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-bubble-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-ui-fade {
+  animation: ui-fade-in 0.22s ease-out forwards;
+}
+
+.animate-ui-drawer {
+  animation: ui-drawer-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-ui-sheet {
+  animation: ui-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-ui-bubble {
+  animation: ui-bubble-pop 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Guinea pig loaf animations (tuned for 280x210 3/4 loaf viewBox) */
 @keyframes cavy-breathe {
   0%, 100% {
     transform: scale(1, 1) translateY(0px);
   }
   50% {
-    transform: scale(1.018, 0.986) translateY(1.5px);
+    transform: scale(1.016, 0.985) translateY(1.2px);
   }
 }
 
@@ -51,10 +117,10 @@
     transform: translateY(0px) scale(1, 1);
   }
   30% {
-    transform: translateY(-5px) scale(0.99, 1.02);
+    transform: translateY(-4px) scale(0.992, 1.018);
   }
   60% {
-    transform: translateY(1px) scale(1.015, 0.985);
+    transform: translateY(1px) scale(1.014, 0.988);
   }
 }
 
@@ -63,16 +129,16 @@
     transform: translate(0px, 0px) rotate(0deg);
   }
   20% {
-    transform: translate(-1.3px, 0.4px) rotate(-0.6deg);
+    transform: translate(-1.1px, 0.35px) rotate(-0.45deg);
   }
   40% {
-    transform: translate(1.3px, -0.3px) rotate(0.6deg);
+    transform: translate(1.1px, -0.25px) rotate(0.45deg);
   }
   60% {
-    transform: translate(-1.1px, 0.2px) rotate(-0.4deg);
+    transform: translate(-0.9px, 0.2px) rotate(-0.35deg);
   }
   80% {
-    transform: translate(1.1px, 0.3px) rotate(0.5deg);
+    transform: translate(0.9px, 0.25px) rotate(0.35deg);
   }
 }
 
@@ -81,7 +147,7 @@
     transform: scale(1, 1) translateY(0px);
   }
   50% {
-    transform: scale(1.028, 0.975) translateY(2.2px);
+    transform: scale(1.024, 0.976) translateY(1.8px);
   }
 }
 
@@ -90,13 +156,13 @@
     transform: translateY(0px) scale(1);
   }
   25% {
-    transform: translateY(-1.2px) scale(1.04, 0.96);
+    transform: translateY(-0.9px) scale(1.035, 0.965);
   }
   50% {
-    transform: translateY(0.5px) scale(0.98, 1.02);
+    transform: translateY(0.4px) scale(0.985, 1.015);
   }
   75% {
-    transform: translateY(-0.8px) scale(1.03, 0.98);
+    transform: translateY(-0.6px) scale(1.025, 0.98);
   }
 }
 
@@ -105,13 +171,13 @@
     transform: rotate(0deg);
   }
   84% {
-    transform: rotate(-7deg);
+    transform: rotate(-5.5deg);
   }
   90% {
-    transform: rotate(3deg);
+    transform: rotate(2.5deg);
   }
   95% {
-    transform: rotate(-4deg);
+    transform: rotate(-3deg);
   }
 }
 
@@ -120,13 +186,13 @@
     transform: rotate(0deg);
   }
   78% {
-    transform: rotate(8deg);
+    transform: rotate(6deg);
   }
   84% {
-    transform: rotate(-3deg);
+    transform: rotate(-2.5deg);
   }
   90% {
-    transform: rotate(4deg);
+    transform: rotate(3.2deg);
   }
 }
 
@@ -135,36 +201,36 @@
     transform: rotate(0deg) skewX(0deg);
   }
   50% {
-    transform: rotate(8deg) skewX(-6deg);
+    transform: rotate(6.5deg) skewX(-5deg);
   }
 }
 
 @keyframes cavy-steam {
   0% {
     opacity: 0;
-    transform: translateY(4px) scale(0.75);
+    transform: translateY(3px) scale(0.75);
   }
   30% {
-    opacity: 0.72;
+    opacity: 0.7;
   }
   100% {
     opacity: 0;
-    transform: translateY(-18px) translateX(4px) scale(1.25);
+    transform: translateY(-15px) translateX(3px) scale(1.2);
   }
 }
 
 @keyframes cavy-breath-puff {
   0%, 35% {
     opacity: 0;
-    transform: translate(0px, 0px) scale(0.4);
+    transform: translate(0px, 0px) scale(0.42);
   }
   52% {
-    opacity: 0.75;
-    transform: translate(8px, -2px) scale(0.95);
+    opacity: 0.72;
+    transform: translate(-6px, -2px) scale(0.95);
   }
   85%, 100% {
     opacity: 0;
-    transform: translate(22px, -9px) scale(1.45);
+    transform: translate(-18px, -8px) scale(1.4);
   }
 }
 
@@ -180,35 +246,46 @@
 @keyframes cavy-heart-float {
   0% {
     opacity: 0;
-    transform: translateY(6px) scale(0.5);
+    transform: translateY(5px) scale(0.5);
   }
   20% {
     opacity: 1;
-    transform: translateY(-4px) scale(1.08);
+    transform: translateY(-4px) scale(1.06);
   }
   100% {
     opacity: 0;
-    transform: translateY(-42px) scale(0.9);
+    transform: translateY(-34px) scale(0.9);
   }
 }
 
 @keyframes cavy-puddle-ripple {
   0% {
-    opacity: 0.7;
+    opacity: 0.65;
     transform: scale(0.45);
   }
   100% {
     opacity: 0;
-    transform: scale(1.55);
+    transform: scale(1.5);
   }
 }
 
 @keyframes cavy-umbrella-bob {
   0%, 100% {
-    transform: rotate(-2deg) translateY(0px);
+    transform: rotate(-1.5deg) translateY(0px);
   }
   50% {
-    transform: rotate(2.5deg) translateY(-2px);
+    transform: rotate(2deg) translateY(-1.5px);
+  }
+}
+
+@keyframes cavy-lantern-glow {
+  0%, 100% {
+    opacity: 0.84;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
   }
 }
 
@@ -217,54 +294,54 @@
     transform: translateY(0) scale(1);
   }
   25% {
-    transform: translateY(-12px) scale(1.04, 0.96);
+    transform: translateY(-9px) scale(1.035, 0.965);
   }
   55% {
-    transform: translateY(2px) scale(0.97, 1.03);
+    transform: translateY(1.5px) scale(0.975, 1.025);
   }
   80% {
-    transform: translateY(-5px) scale(1.01, 0.99);
+    transform: translateY(-4px) scale(1.01, 0.99);
   }
 }
 
 .animate-cavy-breathe {
-  animation: cavy-breathe 3.4s ease-in-out infinite;
-  transform-origin: center bottom;
+  animation: cavy-breathe 3.6s ease-in-out infinite;
+  transform-origin: center 178px;
 }
 
 .animate-cavy-bounce {
-  animation: cavy-bounce 2.8s ease-in-out infinite;
-  transform-origin: center bottom;
+  animation: cavy-bounce 2.9s ease-in-out infinite;
+  transform-origin: center 178px;
 }
 
 .animate-cavy-shiver {
   animation: cavy-shiver 0.36s ease-in-out infinite;
-  transform-origin: center bottom;
+  transform-origin: center 178px;
 }
 
 .animate-cavy-pant {
   animation: cavy-pant 1.15s ease-in-out infinite;
-  transform-origin: center bottom;
+  transform-origin: center 178px;
 }
 
 .animate-cavy-nose {
-  animation: cavy-nose 1.6s ease-in-out infinite;
+  animation: cavy-nose 1.7s ease-in-out infinite;
   transform-origin: center center;
 }
 
 .animate-cavy-ear-left {
   animation: cavy-ear-left 4.8s ease-in-out infinite;
-  transform-origin: 96px 86px;
+  transform-origin: 76px 78px;
 }
 
 .animate-cavy-ear-right {
   animation: cavy-ear-right 5.2s ease-in-out infinite;
-  transform-origin: 184px 86px;
+  transform-origin: 148px 74px;
 }
 
 .animate-cavy-scarf-wind {
   animation: cavy-scarf-wind 2.2s ease-in-out infinite;
-  transform-origin: 158px 168px;
+  transform-origin: 146px 136px;
 }
 
 .animate-cavy-steam {
@@ -281,7 +358,7 @@
 }
 
 .animate-cavy-heart {
-  animation: cavy-heart-float 1.35s ease-out forwards;
+  animation: cavy-heart-float 1.3s ease-out forwards;
 }
 
 .animate-cavy-puddle-ripple {
@@ -290,11 +367,16 @@
 }
 
 .animate-cavy-umbrella {
-  animation: cavy-umbrella-bob 3s ease-in-out infinite;
-  transform-origin: 185px 155px;
+  animation: cavy-umbrella-bob 3.2s ease-in-out infinite;
+  transform-origin: 155px 125px;
+}
+
+.animate-cavy-lantern {
+  animation: cavy-lantern-glow 2.4s ease-in-out infinite;
+  transform-origin: center center;
 }
 
 .animate-cavy-pet-jump {
-  animation: cavy-pet-jump 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transform-origin: center bottom;
+  animation: cavy-pet-jump 0.62s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center 178px;
 }

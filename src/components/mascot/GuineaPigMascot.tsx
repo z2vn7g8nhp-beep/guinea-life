@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import type { GuineaPigOutfit, WeatherCondition } from '../../types/weather';
 import { weatherAudio } from '../../utils/weatherAudio';
 
@@ -7,6 +7,7 @@ interface GuineaPigMascotProps {
   condition: WeatherCondition;
   temperature: number;
   startled?: boolean;
+  compact?: boolean;
   onPet?: (quote: string) => void;
 }
 
@@ -22,8 +23,10 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
   condition,
   temperature,
   startled = false,
+  compact = false,
   onPet,
 }) => {
+  const uid = useId().replace(/:/g, '');
   const [isBlinking, setIsBlinking] = useState(false);
   const [isPetted, setIsPetted] = useState(false);
   const [hearts, setHearts] = useState<FloatingHeart[]>([]);
@@ -34,13 +37,13 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
     let timer = 0;
     let closeTimer = 0;
     const scheduleBlink = () => {
-      const wait = 2400 + Math.random() * 3400;
+      const wait = 2600 + Math.random() * 3400;
       timer = window.setTimeout(() => {
         setIsBlinking(true);
         closeTimer = window.setTimeout(() => {
           setIsBlinking(false);
           scheduleBlink();
-        }, 145);
+        }, 140);
       }, wait);
     };
     scheduleBlink();
@@ -50,10 +53,11 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
     };
   }, []);
 
-  const handlePetClick = () => {
+  const handlePetClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     weatherAudio.playPetChime();
     setIsPetted(true);
-    window.setTimeout(() => setIsPetted(false), 680);
+    window.setTimeout(() => setIsPetted(false), 660);
 
     const quotes = outfit.reactionQuotes;
     const nextQuote = quotes[quoteIdx % quotes.length] ?? 'Wheek~ 豚鼠向你问好！';
@@ -62,14 +66,14 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
 
     const batchId = Date.now();
     const spawned: FloatingHeart[] = [
-      { id: batchId + 1, x: 112 + Math.random() * 25, y: 76, kind: 'heart' },
-      { id: batchId + 2, x: 162 + Math.random() * 30, y: 58, kind: 'sparkle' },
-      { id: batchId + 3, x: 196 + Math.random() * 22, y: 82, kind: 'heart' },
+      { id: batchId + 1, x: 78 + Math.random() * 18, y: 54, kind: 'heart' },
+      { id: batchId + 2, x: 126 + Math.random() * 24, y: 40, kind: 'sparkle' },
+      { id: batchId + 3, x: 168 + Math.random() * 20, y: 58, kind: 'heart' },
     ];
     setHearts((prev) => [...prev.slice(-6), ...spawned]);
     window.setTimeout(() => {
       setHearts((prev) => prev.filter((h) => h.id < batchId));
-    }, 1400);
+    }, 1350);
   };
 
   const bodyAnimClass = isPetted
@@ -84,144 +88,161 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
 
   const isStorm = condition === 'thunderstorm' || condition === 'heavy-rain';
   const showEyesClosedHappy = isPetted;
-  const showSquintCold = !isPetted && !startled && outfit.tierId === 'freezing' && outfit.eyewear === 'none';
+  const showSquintCold =
+    !isPetted && !startled && outfit.tierId === 'freezing' && outfit.eyewear === 'none';
+
+  const handDrawnFilterId = `handDrawn-${uid}`;
+  const bodyClipId = `loafClip-${uid}`;
+  const whiteCoatId = `whiteCoat-${uid}`;
+  const brownPatchId = `brownPatch-${uid}`;
+  const caramelPatchId = `caramelPatch-${uid}`;
+  const bubbleDomeId = `bubbleDome-${uid}`;
+  const lanternGlowId = `lanternGlow-${uid}`;
+
+  // 3/4 front-left loaf silhouette path
+  const loafBodyPath =
+    'M 54 134 C 50 103, 68 72, 110 70 C 142 69, 158 80, 174 82 C 210 82, 240 100, 242 134 C 244 162, 224 176, 186 177 C 140 178, 90 177, 68 168 C 56 162, 55 148, 54 134 Z';
 
   return (
     <div className="relative flex flex-col items-center select-none">
       <button
         type="button"
         onClick={handlePetClick}
-        title="点一点摸摸棕白豚鼠"
+        title="摸摸棕白豚鼠"
         aria-label={`摸摸棕白豚鼠，当前穿搭：${outfit.outfitTitle}`}
-        className="group relative cursor-pointer rounded-3xl p-1 transition-transform duration-300 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="group relative cursor-pointer rounded-2xl p-0.5 transition-transform duration-300 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
       >
-        {/* Subtle ambient spotlight behind mascot */}
+        {/* Subtle warm ambient halo behind mascot */}
         <div
-          className="pointer-events-none absolute inset-6 rounded-full opacity-45 blur-2xl transition-colors duration-700"
+          className="pointer-events-none absolute inset-4 rounded-full opacity-40 blur-xl transition-colors duration-700"
           style={{
             background:
               temperature <= 2
-                ? 'radial-gradient(circle, rgba(186,230,253,0.55) 0%, rgba(56,189,248,0) 70%)'
-                : temperature >= 28
-                ? 'radial-gradient(circle, rgba(253,224,71,0.5) 0%, rgba(251,146,60,0) 70%)'
-                : 'radial-gradient(circle, rgba(255,247,237,0.45) 0%, rgba(255,255,255,0) 70%)',
+                ? 'radial-gradient(circle, rgba(186,230,253,0.45) 0%, rgba(56,189,248,0) 72%)'
+                : outfit.handheldProp === 'lantern'
+                ? 'radial-gradient(circle, rgba(253,224,71,0.45) 0%, rgba(251,146,60,0) 72%)'
+                : 'radial-gradient(circle, rgba(255,244,229,0.35) 0%, rgba(255,255,255,0) 72%)',
           }}
         />
 
         <svg
-          viewBox="0 0 320 310"
-          className="relative z-10 h-64 w-64 drop-shadow-[0_16px_28px_rgba(0,0,0,0.28)] sm:h-76 sm:w-76"
+          viewBox="0 0 280 210"
+          className={`relative z-10 drop-shadow-[0_10px_22px_rgba(0,0,0,0.32)] ${
+            compact ? 'h-36 w-48 sm:h-40 sm:w-52' : 'h-44 w-56 sm:h-48 sm:w-64'
+          }`}
         >
           <defs>
-            {/* Rich chestnut brown fur */}
-            <linearGradient id="cavyBrownFur" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#B96A36" />
-              <stop offset="55%" stopColor="#944B21" />
-              <stop offset="100%" stopColor="#6D3214" />
-            </linearGradient>
+            {/* Subtle organic storybook gouache edge filter */}
+            <filter id={handDrawnFilterId} x="-6%" y="-6%" width="112%" height="112%">
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.024"
+                numOctaves="2"
+                seed="7"
+                result="noise"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="noise"
+                scale="1.35"
+                xChannelSelector="R"
+                yChannelSelector="G"
+              />
+            </filter>
 
-            {/* Lighter caramel brown highlight */}
-            <linearGradient id="cavyCaramelFur" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#CE7B42" />
-              <stop offset="100%" stopColor="#9C5023" />
-            </linearGradient>
+            <clipPath id={bodyClipId}>
+              <path d={loafBodyPath} />
+            </clipPath>
 
-            {/* Creamy milk-white fur */}
-            <radialGradient id="cavyWhiteFur" cx="48%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#FFFFFF" />
-              <stop offset="68%" stopColor="#FAF4EA" />
-              <stop offset="100%" stopColor="#E9DDD0" />
+            {/* Creamy milk-white storybook coat */}
+            <radialGradient id={whiteCoatId} cx="42%" cy="38%" r="68%">
+              <stop offset="0%" stopColor="#FFFDF9" />
+              <stop offset="72%" stopColor="#FBF5EB" />
+              <stop offset="100%" stopColor="#EDE1D0" />
             </radialGradient>
 
-            {/* Inner ear pink */}
-            <linearGradient id="cavyEarPink" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#F5B2BA" />
-              <stop offset="100%" stopColor="#D67C89" />
+            {/* Warm terracotta / cinnamon brown fur */}
+            <linearGradient id={brownPatchId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#CE8556" />
+              <stop offset="65%" stopColor="#BF7447" />
+              <stop offset="100%" stopColor="#A65E35" />
             </linearGradient>
 
-            {/* Transparent bubble umbrella dome */}
-            <radialGradient id="bubbleDome" cx="35%" cy="28%" r="72%">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.68)" />
-              <stop offset="55%" stopColor="rgba(196,232,255,0.26)" />
-              <stop offset="100%" stopColor="rgba(147,197,253,0.45)" />
+            {/* Rich warm rump saddle brown */}
+            <linearGradient id={caramelPatchId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#CA7F50" />
+              <stop offset="100%" stopColor="#AA6138" />
+            </linearGradient>
+
+            {/* Transparent bubble umbrella */}
+            <radialGradient id={bubbleDomeId} cx="36%" cy="28%" r="72%">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.65)" />
+              <stop offset="55%" stopColor="rgba(196,232,255,0.22)" />
+              <stop offset="100%" stopColor="rgba(147,197,253,0.42)" />
             </radialGradient>
 
-            {/* Lantern glow */}
-            <radialGradient id="lanternGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(254, 240, 138, 0.9)" />
-              <stop offset="50%" stopColor="rgba(251, 191, 36, 0.35)" />
+            {/* Night lantern glow */}
+            <radialGradient id={lanternGlowId} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(254, 240, 138, 0.92)" />
+              <stop offset="45%" stopColor="rgba(251, 191, 36, 0.36)" />
               <stop offset="100%" stopColor="rgba(251, 191, 36, 0)" />
             </radialGradient>
-
-            <clipPath id="cavyBodyClip">
-              <path d="M96 164 C92 128, 108 82, 160 80 C212 82, 228 128, 224 164 C232 204, 222 254, 160 256 C98 254, 88 204, 96 164 Z" />
-            </clipPath>
           </defs>
 
           {/* 1. Ground Stage */}
           <g>
-            {/* Soft contact shadow */}
-            <ellipse cx="160" cy="264" rx="74" ry="13" fill="rgba(15, 23, 42, 0.28)" />
+            <ellipse cx="148" cy="182" rx="88" ry="11" fill="rgba(10, 15, 28, 0.32)" />
 
             {outfit.hasPuddle && (
               <g>
                 <ellipse
-                  cx="160"
-                  cy="265"
-                  rx="88"
-                  ry="16"
-                  fill="rgba(125, 211, 252, 0.28)"
-                  stroke="rgba(224, 242, 254, 0.55)"
-                  strokeWidth="1.5"
+                  cx="148"
+                  cy="183"
+                  rx="98"
+                  ry="13"
+                  fill="rgba(125, 211, 252, 0.22)"
+                  stroke="rgba(224, 242, 254, 0.42)"
+                  strokeWidth="1.1"
                 />
                 <ellipse
-                  cx="126"
-                  cy="264"
-                  rx="16"
-                  ry="4.5"
+                  cx="92"
+                  cy="184"
+                  rx="13"
+                  ry="3.6"
                   fill="none"
-                  stroke="rgba(255,255,255,0.55)"
-                  strokeWidth="1.2"
+                  stroke="rgba(255,255,255,0.5)"
+                  strokeWidth="1"
                   className="animate-cavy-puddle-ripple"
                 />
                 <ellipse
-                  cx="196"
-                  cy="267"
-                  rx="14"
-                  ry="4"
+                  cx="206"
+                  cy="184"
+                  rx="11"
+                  ry="3.2"
                   fill="none"
-                  stroke="rgba(255,255,255,0.5)"
-                  strokeWidth="1.2"
-                  style={{ animationDelay: '0.7s' }}
+                  stroke="rgba(255,255,255,0.45)"
+                  strokeWidth="1"
+                  style={{ animationDelay: '0.75s' }}
                   className="animate-cavy-puddle-ripple"
                 />
               </g>
             )}
 
             {outfit.hasSnowDust && (
-              <g>
+              <g filter={`url(#${handDrawnFilterId})`}>
                 <path
-                  d="M72 264 Q112 246 160 256 Q208 248 248 264 Q210 278 160 276 Q110 278 72 264 Z"
-                  fill="rgba(241, 245, 249, 0.88)"
-                />
-                <path
-                  d="M84 265 Q122 254 160 261 Q202 254 236 265"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.9)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
+                  d="M 46 182 Q 96 168 150 175 Q 204 168 250 182 Q 204 193 148 191 Q 92 193 46 182 Z"
+                  fill="rgba(241, 245, 249, 0.85)"
                 />
               </g>
             )}
 
             {!outfit.hasPuddle && !outfit.hasSnowDust && (
               <g>
-                <ellipse cx="160" cy="265" rx="82" ry="12" fill="rgba(134, 239, 172, 0.22)" />
-                {/* Tiny clover/grass tufts */}
                 <path
-                  d="M92 264 Q89 254 84 252 M94 264 Q96 253 101 251 M226 264 Q224 254 219 253 M228 264 Q232 254 237 252"
-                  stroke="rgba(167, 243, 208, 0.65)"
-                  strokeWidth="2"
+                  d="M 56 181 Q 53 174 49 173 M 58 181 Q 60 174 64 173 M 234 181 Q 232 174 228 173 M 236 181 Q 239 174 243 173"
+                  stroke="rgba(167, 243, 208, 0.52)"
+                  strokeWidth="1.6"
                   strokeLinecap="round"
                   fill="none"
                 />
@@ -229,681 +250,728 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
             )}
           </g>
 
-          {/* 2. Animated Mascot Core Group */}
+          {/* 2. Animated Chubby Loaf Guinea Pig Core */}
           <g className={bodyAnimClass}>
-            {/* Ears (behind head) */}
-            <g className="animate-cavy-ear-left">
-              <path
-                d="M106 94 C86 78, 76 96, 86 114 C94 122, 108 118, 114 106 Z"
-                fill="url(#cavyBrownFur)"
-              />
-              <path
-                d="M103 97 C91 88, 86 98, 92 109 C97 113, 104 111, 108 104 Z"
-                fill="url(#cavyEarPink)"
-                opacity="0.72"
-              />
-            </g>
-            <g className="animate-cavy-ear-right">
-              <path
-                d="M214 94 C234 78, 244 96, 234 114 C226 122, 212 118, 206 106 Z"
-                fill="#F7EFE3"
-              />
-              <path
-                d="M217 97 C229 88, 234 98, 228 109 C223 113, 216 111, 212 104 Z"
-                fill="url(#cavyEarPink)"
-                opacity="0.82"
-              />
-            </g>
-
-            {/* Footwear (under body hem) */}
-            <g>
+            {/* Dainty little paws / booties peeking under the tummy */}
+            <g filter={`url(#${handDrawnFilterId})`}>
               {outfit.footwear === 'bare-paws' && (
                 <>
-                  <ellipse cx="132" cy="254" rx="16" ry="8" fill="#F8D8CE" stroke="#DFB4A8" strokeWidth="1.2" />
-                  <ellipse cx="188" cy="254" rx="16" ry="8" fill="#F8D8CE" stroke="#DFB4A8" strokeWidth="1.2" />
+                  <ellipse cx="86" cy="175" rx="10" ry="5.2" fill="#E9BDB1" />
+                  <ellipse cx="126" cy="177" rx="10" ry="5.2" fill="#E9BDB1" />
+                  <ellipse cx="204" cy="175" rx="9" ry="4.8" fill="#E3B3A7" />
                 </>
               )}
               {outfit.footwear === 'snow-boots' && (
                 <>
                   <g>
-                    <rect x="115" y="236" width="32" height="22" rx="10" fill="#B45309" />
-                    <rect x="113" y="233" width="36" height="9" rx="4.5" fill="#FEF3C7" />
-                    <rect x="116" y="254" width="30" height="5" rx="2.5" fill="#451A03" />
+                    <ellipse cx="86" cy="176" rx="11.5" ry="6.2" fill="#9A5026" />
+                    <path d="M 76 172 Q 86 169 96 172" stroke="#F7EAD2" strokeWidth="3.8" strokeLinecap="round" fill="none" />
                   </g>
                   <g>
-                    <rect x="173" y="236" width="32" height="22" rx="10" fill="#B45309" />
-                    <rect x="171" y="233" width="36" height="9" rx="4.5" fill="#FEF3C7" />
-                    <rect x="174" y="254" width="30" height="5" rx="2.5" fill="#451A03" />
+                    <ellipse cx="126" cy="178" rx="11.5" ry="6.2" fill="#9A5026" />
+                    <path d="M 116 174 Q 126 171 136 174" stroke="#F7EAD2" strokeWidth="3.8" strokeLinecap="round" fill="none" />
+                  </g>
+                  <g>
+                    <ellipse cx="204" cy="176" rx="10.5" ry="5.8" fill="#8C4721" />
+                    <path d="M 195 172 Q 204 169 213 172" stroke="#F7EAD2" strokeWidth="3.4" strokeLinecap="round" fill="none" />
                   </g>
                 </>
               )}
               {outfit.footwear === 'ankle-boots' && (
                 <>
-                  <rect x="116" y="239" width="31" height="19" rx="9" fill="#57321A" />
-                  <rect x="173" y="239" width="31" height="19" rx="9" fill="#57321A" />
-                  <rect x="117" y="253" width="29" height="4.5" rx="2" fill="#291509" />
-                  <rect x="174" y="253" width="29" height="4.5" rx="2" fill="#291509" />
+                  <ellipse cx="86" cy="176" rx="11" ry="5.8" fill="#6D442B" />
+                  <ellipse cx="126" cy="178" rx="11" ry="5.8" fill="#6D442B" />
+                  <ellipse cx="204" cy="176" rx="10" ry="5.2" fill="#5D3822" />
                 </>
               )}
               {outfit.footwear === 'sneakers' && (
                 <>
-                  <rect x="116" y="242" width="32" height="16" rx="8" fill="#0F766E" />
-                  <rect x="116" y="252" width="32" height="6" rx="3" fill="#FFFFFF" />
-                  <rect x="172" y="242" width="32" height="16" rx="8" fill="#0F766E" />
-                  <rect x="172" y="252" width="32" height="6" rx="3" fill="#FFFFFF" />
+                  <ellipse cx="86" cy="175" rx="11" ry="5.8" fill="#538D83" />
+                  <path d="M 76 177 Q 86 180 96 177" stroke="#FAF6EE" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+                  <ellipse cx="126" cy="177" rx="11" ry="5.8" fill="#538D83" />
+                  <path d="M 116 179 Q 126 182 136 179" stroke="#FAF6EE" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+                  <ellipse cx="204" cy="175" rx="9.8" ry="5.2" fill="#497D74" />
                 </>
               )}
               {outfit.footwear === 'rain-boots' && (
                 <>
-                  <rect x="115" y="233" width="32" height="25" rx="9" fill="#FACC15" stroke="#CA8A04" strokeWidth="1.2" />
-                  <rect x="114" y="233" width="34" height="6" rx="3" fill="#FEF08A" />
-                  <rect x="115" y="253" width="32" height="5" rx="2.5" fill="#A16207" />
-                  <rect x="173" y="233" width="32" height="25" rx="9" fill="#FACC15" stroke="#CA8A04" strokeWidth="1.2" />
-                  <rect x="172" y="233" width="34" height="6" rx="3" fill="#FEF08A" />
-                  <rect x="173" y="253" width="32" height="5" rx="2.5" fill="#A16207" />
+                  <ellipse cx="86" cy="175" rx="11.5" ry="6.2" fill="#EFC542" />
+                  <ellipse cx="126" cy="177" rx="11.5" ry="6.2" fill="#EFC542" />
+                  <ellipse cx="204" cy="175" rx="10.5" ry="5.6" fill="#E2B634" />
                 </>
               )}
               {outfit.footwear === 'sandals' && (
                 <>
-                  <ellipse cx="132" cy="254" rx="16" ry="7" fill="#D97706" />
-                  <path d="M120 251 Q132 245 144 251" stroke="#FEF3C7" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-                  <ellipse cx="188" cy="254" rx="16" ry="7" fill="#D97706" />
-                  <path d="M176 251 Q188 245 200 251" stroke="#FEF3C7" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+                  <ellipse cx="86" cy="176" rx="10.5" ry="5" fill="#C97B3A" />
+                  <path d="M 78 174 Q 86 170 94 174" stroke="#FCEEC7" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+                  <ellipse cx="126" cy="178" rx="10.5" ry="5" fill="#C97B3A" />
+                  <path d="M 118 176 Q 126 172 134 176" stroke="#FCEEC7" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+                  <ellipse cx="204" cy="175" rx="9.5" ry="4.8" fill="#BA6F31" />
                 </>
               )}
             </g>
 
-            {/* Plump Guinea Pig Body & Brown-and-White Fur Coat */}
-            <g clipPath="url(#cavyBodyClip)">
-              {/* Creamy white base coat */}
-              <rect x="85" y="75" width="150" height="190" fill="url(#cavyWhiteFur)" />
+            {/* Plump Loaf Body + Brown-and-White Storybook Markings */}
+            <g filter={`url(#${handDrawnFilterId})`}>
+              <g clipPath={`url(#${bodyClipId})`}>
+                {/* Creamy milk-white base coat */}
+                <rect x="40" y="60" width="215" height="130" fill={`url(#${whiteCoatId})`} />
 
-              {/* Signature brown patch on left cheek & eye */}
-              <path
-                d="M84 74 L152 74 C146 94, 152 114, 144 134 C132 148, 114 152, 86 146 Z"
-                fill="url(#cavyBrownFur)"
-              />
-
-              {/* Signature caramel-brown saddle patch on right flank & hip */}
-              <path
-                d="M236 142 C202 142, 184 162, 180 188 C176 218, 192 246, 236 254 Z"
-                fill="url(#cavyCaramelFur)"
-              />
-
-              {/* Small brown patch on lower left hip for authentic tri-spot look */}
-              <path
-                d="M84 182 C108 184, 120 202, 114 236 L84 248 Z"
-                fill="url(#cavyBrownFur)"
-                opacity="0.92"
-              />
-
-              {/* Subtle belly shading */}
-              <ellipse cx="160" cy="236" rx="64" ry="28" fill="rgba(214, 198, 180, 0.34)" />
-
-              {/* Soft fur tuft texture accents along patch boundaries */}
-              <path
-                d="M148 92 L154 96 L147 101 M145 112 L152 116 L144 122 M186 168 L178 172 L185 178"
-                stroke="#944B21"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-                opacity="0.55"
-              />
-            </g>
-
-            {/* Outer body silhouette contour for crisp contrast against bright skies */}
-            <path
-              d="M96 164 C92 128, 108 82, 160 80 C212 82, 228 128, 224 164 C232 204, 222 254, 160 256 C98 254, 88 204, 96 164 Z"
-              fill="none"
-              stroke="rgba(120, 72, 42, 0.22)"
-              strokeWidth="1.5"
-            />
-
-            {/* Fluffy cheek fur tufts */}
-            <path
-              d="M97 132 Q90 135 95 140 M223 132 Q230 135 225 140"
-              stroke="rgba(148, 75, 33, 0.45)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              fill="none"
-            />
-
-            {/* 3. Outerwear Clothing Layer */}
-            <g>
-              {outfit.outerwear === 'parka' && (
-                <g>
-                  <path
-                    d="M97 166 C92 198, 96 238, 122 246 L198 246 C224 238, 228 198, 223 166 C204 156, 116 156, 97 166 Z"
-                    fill="#3F6212"
-                  />
-                  {/* Quilted horizontal stitching */}
-                  <path
-                    d="M100 188 Q160 194 220 188 M98 212 Q160 218 222 212"
-                    stroke="#365314"
-                    strokeWidth="1.8"
-                    fill="none"
-                  />
-                  {/* Center zipper placket */}
-                  <rect x="155" y="160" width="10" height="86" rx="4" fill="#65A30D" />
-                  <circle cx="160" cy="178" r="2.2" fill="#FEF08A" />
-                  <circle cx="160" cy="202" r="2.2" fill="#FEF08A" />
-                  <circle cx="160" cy="226" r="2.2" fill="#FEF08A" />
-                  {/* Fluffy cream faux-fur collar */}
-                  <path
-                    d="M104 162 Q132 174 160 168 Q188 174 216 162 Q204 148 160 154 Q116 148 104 162 Z"
-                    fill="#FEF3C7"
-                    stroke="#E7D7AE"
-                    strokeWidth="1.2"
-                  />
-                </g>
-              )}
-
-              {outfit.outerwear === 'duffle-coat' && (
-                <g>
-                  <path
-                    d="M98 166 C94 200, 98 240, 122 246 L198 246 C222 240, 226 200, 222 166 C204 156, 116 156, 98 166 Z"
-                    fill="#D97706"
-                  />
-                  <line x1="160" y1="162" x2="160" y2="246" stroke="#92400E" strokeWidth="2" />
-                  {/* Wooden toggle clasps */}
-                  {[182, 206, 228].map((ty) => (
-                    <g key={ty}>
-                      <line x1="150" y1={ty} x2="170" y2={ty} stroke="#78350F" strokeWidth="2.5" strokeLinecap="round" />
-                      <rect x="155" y={ty - 3} width="10" height="6" rx="3" fill="#451A03" />
-                    </g>
-                  ))}
-                  {/* Side pockets */}
-                  <rect x="112" y="206" width="24" height="20" rx="5" fill="#B45309" />
-                  <rect x="184" y="206" width="24" height="20" rx="5" fill="#B45309" />
-                </g>
-              )}
-
-              {outfit.outerwear === 'knit-cardigan' && (
-                <g>
-                  {/* Cream inner tee */}
-                  <path d="M126 162 L194 162 L188 244 L132 244 Z" fill="#FFFBEB" />
-                  {/* Matcha knit cardigan left & right */}
-                  <path
-                    d="M99 166 C94 198, 98 238, 122 244 L150 244 L150 162 C132 158, 112 160, 99 166 Z"
-                    fill="#65A30D"
-                  />
-                  <path
-                    d="M221 166 C226 198, 222 238, 198 244 L170 244 L170 162 C188 158, 208 160, 221 166 Z"
-                    fill="#65A30D"
-                  />
-                  {/* Knit ribbing texture */}
-                  <path
-                    d="M118 176 V232 M134 176 V232 M186 176 V232 M202 176 V232"
-                    stroke="#4D7C0F"
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    opacity="0.55"
-                  />
-                  <circle cx="154" cy="186" r="2.6" fill="#78350F" />
-                  <circle cx="154" cy="208" r="2.6" fill="#78350F" />
-                  <circle cx="154" cy="230" r="2.6" fill="#78350F" />
-                </g>
-              )}
-
-              {outfit.outerwear === 'denim-overalls' && (
-                <g>
-                  {/* Striped tee underneath */}
-                  <path
-                    d="M100 166 C97 188, 99 212, 108 228 L212 228 C221 212, 223 188, 220 166 C198 158, 122 158, 100 166 Z"
-                    fill="#FFF7ED"
-                  />
-                  <path
-                    d="M102 178 H218 M100 192 H220"
-                    stroke="#FB923C"
-                    strokeWidth="4.5"
-                    opacity="0.82"
-                  />
-                  {/* Denim overall bib & pants */}
-                  <path
-                    d="M126 176 L194 176 L212 244 C194 249, 126 249, 108 244 Z"
-                    fill="#2563EB"
-                  />
-                  {/* Straps */}
-                  <rect x="126" y="160" width="11" height="22" rx="3" fill="#1D4ED8" />
-                  <rect x="183" y="160" width="11" height="22" rx="3" fill="#1D4ED8" />
-                  <circle cx="131.5" cy="179" r="3" fill="#FACC15" />
-                  <circle cx="188.5" cy="179" r="3" fill="#FACC15" />
-                  {/* Front pocket */}
-                  <rect x="143" y="192" width="34" height="24" rx="6" fill="#1D4ED8" stroke="#60A5FA" strokeWidth="1" strokeDasharray="3 2" />
-                </g>
-              )}
-
-              {outfit.outerwear === 'floral-shirt' && (
-                <g>
-                  <path
-                    d="M99 166 C95 196, 99 232, 120 242 L200 242 C221 232, 225 196, 221 166 C202 158, 118 158, 99 166 Z"
-                    fill="#0EA5E9"
-                  />
-                  {/* Botanical palm/hibiscus prints */}
-                  <circle cx="126" cy="192" r="7" fill="#FDA4AF" opacity="0.9" />
-                  <circle cx="126" cy="192" r="2.5" fill="#FACC15" />
-                  <circle cx="188" cy="216" r="8" fill="#FDE047" opacity="0.88" />
-                  <circle cx="188" cy="216" r="2.8" fill="#F97316" />
-                  <path d="M174 178 Q190 172 196 186 Q182 188 174 178 Z" fill="#4ADE80" opacity="0.85" />
-                  <path d="M122 224 Q138 214 144 230 Q128 232 122 224 Z" fill="#4ADE80" opacity="0.85" />
-                  {/* Open collar V-neck */}
-                  <polygon points="145,160 160,184 175,160" fill="#FFFBF4" />
-                </g>
-              )}
-
-              {outfit.outerwear === 'cooling-tank' && (
-                <g>
-                  <path
-                    d="M116 164 L204 164 L210 238 C188 244, 132 244, 110 238 Z"
-                    fill="#38BDF8"
-                  />
-                  <path
-                    d="M142 164 Q160 178 178 164"
-                    fill="#FFFBF4"
-                  />
-                  <circle cx="160" cy="204" r="14" fill="rgba(255,255,255,0.22)" />
-                  <path d="M160 194 V214 M150 204 H170 M153 197 L167 211 M167 197 L153 211" stroke="#E0F2FE" strokeWidth="2" strokeLinecap="round" />
-                </g>
-              )}
-            </g>
-
-            {/* 4. Waterproof Raincoat Overlay */}
-            {outfit.rainGear !== 'none' && (
-              <g>
+                {/* Left cheek cinnamon-brown patch (wraps around far-left cheek) */}
                 <path
-                  d="M92 162 C86 200, 92 240, 118 248 L202 248 C228 240, 234 200, 228 162 C206 150, 114 150, 92 162 Z"
-                  fill={outfit.rainGear === 'storm-slicker' ? 'rgba(249, 115, 22, 0.88)' : 'rgba(250, 204, 21, 0.86)'}
-                  stroke={outfit.rainGear === 'storm-slicker' ? '#EA580C' : '#EAB308'}
-                  strokeWidth="1.5"
+                  d="M 42 74 C 66 74, 86 84, 88 104 C 90 120, 80 134, 72 142 C 62 148, 44 146, 42 132 Z"
+                  fill={`url(#${brownPatchId})`}
                 />
-                {/* Glossy waterproof highlight */}
+
+                {/* Right crown & eye cinnamon-brown patch (leaves cute white forehead blaze!) */}
                 <path
-                  d="M108 174 C104 198, 108 222, 116 236"
-                  stroke="rgba(255,255,255,0.48)"
-                  strokeWidth="4"
+                  d="M 108 62 C 134 62, 156 76, 158 100 C 159 116, 146 130, 128 130 C 114 130, 108 116, 108 100 C 108 86, 106 72, 108 62 Z"
+                  fill={`url(#${brownPatchId})`}
+                />
+
+                {/* Signature plump cinnamon-brown rump saddle */}
+                <path
+                  d="M 176 76 C 194 94, 198 122, 186 146 C 176 164, 178 178, 196 184 L 252 184 L 252 76 Z"
+                  fill={`url(#${caramelPatchId})`}
+                />
+
+                {/* Warm subtle tummy shadow for plumpness */}
+                <ellipse cx="148" cy="170" rx="86" ry="15" fill="rgba(182, 149, 122, 0.22)" />
+
+                {/* Gentle hand-drawn fur fluff strokes */}
+                <path
+                  d="M 86 98 L 91 102 L 85 106 M 183 116 L 177 120 L 182 125"
+                  stroke="#B3693D"
+                  strokeWidth="1.6"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                   fill="none"
+                  opacity="0.48"
                 />
-                {/* Snap buttons */}
-                <line x1="160" y1="160" x2="160" y2="246" stroke="rgba(161,98,7,0.5)" strokeWidth="2" />
-                {[178, 200, 222].map((y) => (
-                  <circle key={y} cx="160" cy={y} r="3" fill="#FFFBEB" stroke="#B45309" strokeWidth="1" />
-                ))}
+
+                {/* Outerwear Layer clipped/shaped snugly inside the loaf torso */}
+                {outfit.outerwear === 'parka' && (
+                  <g>
+                    {/* Olive quilted winter coat draped across back & torso */}
+                    <path
+                      d="M 134 78 C 166 76, 206 84, 224 108 C 232 126, 226 158, 212 174 L 132 176 C 122 152, 122 104, 134 78 Z"
+                      fill="#5A7247"
+                    />
+                    <path
+                      d="M 138 112 Q 182 118 224 110 M 135 138 Q 182 144 222 136 M 136 160 Q 180 165 216 158"
+                      stroke="#445834"
+                      strokeWidth="1.6"
+                      fill="none"
+                      opacity="0.7"
+                    />
+                    {/* Fluffy oatmeal sherpa collar */}
+                    <path
+                      d="M 126 78 Q 140 108 134 152 Q 146 156 150 144 Q 154 104 142 78 Z"
+                      fill="#F6ECD8"
+                    />
+                  </g>
+                )}
+
+                {outfit.outerwear === 'duffle-coat' && (
+                  <g>
+                    {/* Warm camel-ochre wool capelet */}
+                    <path
+                      d="M 136 78 C 170 76, 208 86, 226 112 C 232 134, 224 162, 208 174 L 134 176 C 126 146, 126 106, 136 78 Z"
+                      fill="#D28E44"
+                    />
+                    {/* Stitched pocket */}
+                    <rect x="164" y="132" width="24" height="20" rx="6" fill="#BA7730" opacity="0.8" />
+                    {/* Wooden toggle clasps */}
+                    {[100, 122, 144].map((ty, idx) => (
+                      <g key={ty}>
+                        <line
+                          x1={144 + idx * 2}
+                          y1={ty}
+                          x2={156 + idx * 2}
+                          y2={ty - 1}
+                          stroke="#6B3D1C"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                        />
+                        <rect x={148 + idx * 2} y={ty - 3} width="7" height="4.5" rx="2.2" fill="#4A2710" />
+                      </g>
+                    ))}
+                  </g>
+                )}
+
+                {outfit.outerwear === 'knit-cardigan' && (
+                  <g>
+                    {/* Cozy sage-matcha knitted sweater wrap */}
+                    <path
+                      d="M 136 80 C 168 78, 196 84, 208 106 C 214 130, 208 158, 194 174 L 136 174 C 128 148, 128 108, 136 80 Z"
+                      fill="#7A9A5B"
+                    />
+                    {/* Soft ribbed knit stripes */}
+                    <path
+                      d="M 150 86 V168 M 166 86 V168 M 182 90 V168 M 196 98 V166"
+                      stroke="#607E43"
+                      strokeWidth="1.8"
+                      strokeDasharray="4 4"
+                      opacity="0.55"
+                    />
+                    {/* Cream placket & wooden buttons */}
+                    <circle cx="143" cy="112" r="2.4" fill="#6D4325" />
+                    <circle cx="143" cy="132" r="2.4" fill="#6D4325" />
+                    <circle cx="143" cy="152" r="2.4" fill="#6D4325" />
+                  </g>
+                )}
+
+                {outfit.outerwear === 'denim-overalls' && (
+                  <g>
+                    {/* Subtle dusty-indigo cute overall harness over the white middle band */}
+                    <path
+                      d="M 148 112 L 204 110 C 212 134, 208 162, 196 176 L 142 176 C 136 154, 138 130, 148 112 Z"
+                      fill="#4B6E9E"
+                    />
+                    {/* Overall straps over shoulders */}
+                    <path
+                      d="M 148 80 Q 152 98 154 114"
+                      stroke="#3C5B85"
+                      strokeWidth="6.5"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                    <path
+                      d="M 178 82 Q 186 98 190 112"
+                      stroke="#3C5B85"
+                      strokeWidth="6.5"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                    <circle cx="154" cy="116" r="2.4" fill="#F2C85B" />
+                    <circle cx="190" cy="114" r="2.4" fill="#F2C85B" />
+                    {/* Pocket */}
+                    <rect
+                      x="160"
+                      y="132"
+                      width="24"
+                      height="18"
+                      rx="5"
+                      fill="#3C5B85"
+                      stroke="#93B4DF"
+                      strokeWidth="1"
+                      strokeDasharray="3 2"
+                    />
+                  </g>
+                )}
+
+                {outfit.outerwear === 'floral-shirt' && (
+                  <g>
+                    {/* Breezy chambray summer shirt */}
+                    <path
+                      d="M 136 80 C 168 78, 200 86, 212 110 C 218 134, 212 160, 198 174 L 136 174 C 128 148, 128 108, 136 80 Z"
+                      fill="#62A3C7"
+                    />
+                    {/* Soft cream & coral blossom motifs */}
+                    <circle cx="162" cy="114" r="4.5" fill="#FAD2CE" />
+                    <circle cx="162" cy="114" r="1.7" fill="#F59E0B" />
+                    <circle cx="188" cy="142" r="5" fill="#FEF3C7" />
+                    <circle cx="188" cy="142" r="1.9" fill="#F97316" />
+                    <circle cx="154" cy="150" r="3.8" fill="#FEF3C7" />
+                    <path d="M 178 102 Q 190 98 193 108 Q 182 110 178 102 Z" fill="#86EFAC" opacity="0.85" />
+                  </g>
+                )}
+
+                {outfit.outerwear === 'cooling-tank' && (
+                  <g>
+                    {/* Light pastel aqua breathable vest */}
+                    <path
+                      d="M 138 82 C 166 80, 194 86, 204 108 C 210 132, 204 158, 192 172 L 138 172 C 132 146, 132 108, 138 82 Z"
+                      fill="#7CC8DF"
+                    />
+                    <circle cx="170" cy="130" r="11" fill="rgba(255,255,255,0.22)" />
+                    <path
+                      d="M 170 122 V138 M 162 130 H178 M 164 124 L 176 136 M 176 124 L 164 136"
+                      stroke="#F0FAFF"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </g>
+                )}
+
+                {/* Raincoat Poncho Overlay */}
+                {outfit.rainGear !== 'none' && (
+                  <g>
+                    <path
+                      d="M 126 76 C 166 72, 212 84, 232 116 C 238 140, 230 166, 212 176 L 126 176 C 118 146, 118 104, 126 76 Z"
+                      fill={
+                        outfit.rainGear === 'storm-slicker'
+                          ? 'rgba(235, 136, 62, 0.92)'
+                          : 'rgba(244, 206, 82, 0.92)'
+                      }
+                    />
+                    <path
+                      d="M 142 94 C 168 92, 196 100, 210 122"
+                      stroke="rgba(255,255,255,0.48)"
+                      strokeWidth="3.2"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                    <circle cx="144" cy="118" r="2.3" fill="#FFFDF5" />
+                    <circle cx="144" cy="142" r="2.3" fill="#FFFDF5" />
+                  </g>
+                )}
+              </g>
+            </g>
+
+            {/* Rain hood framing crown & behind cheeks (when raining) */}
+            {outfit.headwear === 'rain-hood' && (
+              <g filter={`url(#${handDrawnFilterId})`}>
+                <path
+                  d="M 102 66 C 132 62, 156 78, 160 112 C 162 132, 150 156, 134 166 L 122 156 C 134 140, 138 118, 134 96 C 128 80, 110 74, 88 76 C 72 78, 62 90, 58 102 C 58 82, 76 68, 102 66 Z"
+                  fill={
+                    outfit.rainGear === 'storm-slicker'
+                      ? 'rgba(235, 136, 62, 0.95)'
+                      : 'rgba(244, 206, 82, 0.95)'
+                  }
+                />
               </g>
             )}
 
-            {/* 5. Neckwear */}
-            <g>
-              {(outfit.neckwear === 'wool-scarf' || outfit.neckwear === 'plaid-scarf') && (
-                <g>
-                  {/* Fluttering scarf tail */}
-                  <g className={outfit.isWindy ? 'animate-cavy-scarf-wind' : ''}>
-                    <path
-                      d="M174 164 C196 176, 204 202, 198 222 L176 222 C178 202, 170 182, 158 170 Z"
-                      fill={outfit.neckwear === 'wool-scarf' ? '#DC2626' : '#B91C1C'}
-                    />
-                    <path
-                      d="M177 194 H199 M177 208 H199"
-                      stroke={outfit.neckwear === 'wool-scarf' ? '#FEF3C7' : '#FBBF24'}
-                      strokeWidth="3"
-                    />
-                  </g>
-                  {/* Collar wrap */}
+            {/* Soft Floppy Ears (low & snug, matching Image 2) */}
+            {outfit.headwear !== 'rain-hood' && (
+              <g filter={`url(#${handDrawnFilterId})`}>
+                <g className="animate-cavy-ear-left">
                   <path
-                    d="M104 156 Q160 176 216 156 Q218 172 160 182 Q102 172 104 156 Z"
-                    fill={outfit.neckwear === 'wool-scarf' ? '#EF4444' : '#991B1B'}
+                    d="M 80 76 C 64 72, 58 84, 65 96 C 71 102, 82 96, 84 86 Z"
+                    fill="#98695F"
                   />
                   <path
-                    d="M126 164 L122 176 M148 168 L146 180 M172 168 L174 180 M194 164 L198 176"
-                    stroke={outfit.neckwear === 'wool-scarf' ? '#FEF3C7' : '#FDE68A'}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
+                    d="M 78 80 C 68 78, 65 85, 69 92 C 73 95, 79 91, 80 85 Z"
+                    fill="#B7887D"
+                  />
+                </g>
+                <g className="animate-cavy-ear-right">
+                  <path
+                    d="M 140 72 C 156 68, 164 80, 156 93 C 150 99, 139 94, 137 83 Z"
+                    fill="#98695F"
+                  />
+                  <path
+                    d="M 142 76 C 152 74, 156 81, 151 89 C 147 92, 141 88, 140 81 Z"
+                    fill="#B7887D"
+                  />
+                </g>
+              </g>
+            )}
+
+            {/* Neckwear (curved around 3/4 neck contour) */}
+            <g filter={`url(#${handDrawnFilterId})`}>
+              {(outfit.neckwear === 'wool-scarf' || outfit.neckwear === 'plaid-scarf') && (
+                <g>
+                  {/* Fluttering scarf tail resting along shoulder */}
+                  <g className={outfit.isWindy ? 'animate-cavy-scarf-wind' : ''}>
+                    <path
+                      d="M 140 128 C 156 134, 166 150, 164 166 L 146 167 C 146 152, 140 140, 130 134 Z"
+                      fill={outfit.neckwear === 'wool-scarf' ? '#CF5348' : '#B54038'}
+                    />
+                    <path
+                      d="M 146 150 H163 M 146 159 H163"
+                      stroke="#F9EAC8"
+                      strokeWidth="2.4"
+                    />
+                  </g>
+                  {/* Scarf collar wrap */}
+                  <path
+                    d="M 122 76 C 142 96, 144 138, 128 164 C 118 166, 114 160, 118 152 C 130 130, 128 96, 112 78 Z"
+                    fill={outfit.neckwear === 'wool-scarf' ? '#DC5D52' : '#9E342D'}
                   />
                 </g>
               )}
 
               {outfit.neckwear === 'cooling-ring' && (
-                <g>
-                  <path
-                    d="M112 152 Q160 174 208 152 Q212 164 160 180 Q108 164 112 152 Z"
-                    fill="#67E8F9"
-                    stroke="#06B6D4"
-                    strokeWidth="1.5"
-                  />
-                  <path d="M124 160 Q160 173 196 160" stroke="#ECFEFF" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.8" />
-                </g>
+                <path
+                  d="M 122 82 C 138 102, 138 136, 126 160 C 118 162, 115 156, 119 148 C 128 128, 128 102, 114 84 Z"
+                  fill="#8FE3F4"
+                  stroke="#53BDD4"
+                  strokeWidth="1.2"
+                />
               )}
 
               {outfit.neckwear === 'bowtie' && outfit.rainGear === 'none' && (
-                <g transform="translate(160, 162)">
-                  <polygon points="0,0 -15,-8 -15,8" fill="#F43F5E" />
-                  <polygon points="0,0 15,-8 15,8" fill="#F43F5E" />
-                  <circle cx="0" cy="0" r="4" fill="#FB7185" />
+                <g transform="translate(114, 159) rotate(-8)">
+                  <polygon points="0,0 -10,-5.5 -10,5.5" fill="#DE6B68" />
+                  <polygon points="0,0 10,-5.5 10,5.5" fill="#DE6B68" />
+                  <circle cx="0" cy="0" r="2.8" fill="#F49D9B" />
                 </g>
               )}
             </g>
 
-            {/* 6. Expressive Guinea Pig Face */}
+            {/* 3. Expressive 3/4 Guinea Pig Face */}
             <g>
-              {/* Eyes */}
+              {/* Soft rosy cheek blush */}
+              <ellipse
+                cx="68"
+                cy="127"
+                rx="6.5"
+                ry="3.6"
+                fill="#F2B2AA"
+                opacity={temperature <= 0 || isPetted ? 0.65 : 0.36}
+              />
+              <ellipse
+                cx="124"
+                cy="129"
+                rx="7"
+                ry="3.8"
+                fill="#F2B2AA"
+                opacity={temperature <= 0 || isPetted ? 0.65 : 0.36}
+              />
+
+              {/* Cute little bean eyes */}
               {showEyesClosedHappy ? (
                 <>
-                  <path d="M122 116 Q132 106 142 116" stroke="#1C1917" strokeWidth="3.2" strokeLinecap="round" fill="none" />
-                  <path d="M178 116 Q188 106 198 116" stroke="#1C1917" strokeWidth="3.2" strokeLinecap="round" fill="none" />
+                  <path
+                    d="M 69 113 Q 74 106 80 112"
+                    stroke="#2A1F1B"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <path
+                    d="M 111 114 Q 118 107 125 114"
+                    stroke="#2A1F1B"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
                 </>
               ) : isBlinking || showSquintCold ? (
                 <>
-                  <path d="M123 114 Q132 119 141 114" stroke="#1C1917" strokeWidth="2.8" strokeLinecap="round" fill="none" />
-                  <path d="M179 114 Q188 119 197 114" stroke="#1C1917" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+                  <path
+                    d="M 69 112 Q 74 116 79 112"
+                    stroke="#2A1F1B"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <path
+                    d="M 112 113 Q 118 117 124 113"
+                    stroke="#2A1F1B"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
                 </>
               ) : startled ? (
                 <>
-                  <circle cx="132" cy="113" r="8.5" fill="#FFFFFF" stroke="#1C1917" strokeWidth="1.5" />
-                  <circle cx="132" cy="113" r="4.5" fill="#1C1917" />
-                  <circle cx="134" cy="111" r="1.5" fill="#FFFFFF" />
-                  <circle cx="188" cy="113" r="8.5" fill="#FFFFFF" stroke="#1C1917" strokeWidth="1.5" />
-                  <circle cx="188" cy="113" r="4.5" fill="#1C1917" />
-                  <circle cx="190" cy="111" r="1.5" fill="#FFFFFF" />
+                  <circle cx="74" cy="111" r="6" fill="#FFFFFF" stroke="#2A1F1B" strokeWidth="1.4" />
+                  <circle cx="74" cy="111" r="3.2" fill="#2A1F1B" />
+                  <circle cx="75.2" cy="109.6" r="1.2" fill="#FFFFFF" />
+                  <circle cx="118" cy="112" r="6.4" fill="#FFFFFF" stroke="#2A1F1B" strokeWidth="1.4" />
+                  <circle cx="118" cy="112" r="3.4" fill="#2A1F1B" />
+                  <circle cx="119.3" cy="110.5" r="1.2" fill="#FFFFFF" />
                 </>
               ) : (
                 <>
-                  {/* Left eye */}
-                  <circle cx="132" cy="114" r="6.8" fill="#1C1917" />
-                  <circle cx="134.5" cy="111.5" r="2.2" fill="#FFFFFF" />
-                  <circle cx="129.5" cy="116" r="1" fill="#FFFFFF" opacity="0.7" />
-                  {/* Right eye */}
-                  <circle cx="188" cy="114" r="6.8" fill="#1C1917" />
-                  <circle cx="190.5" cy="111.5" r="2.2" fill="#FFFFFF" />
-                  <circle cx="185.5" cy="116" r="1" fill="#FFFFFF" opacity="0.7" />
+                  <ellipse cx="74" cy="112" rx="4.2" ry="5.1" fill="#2A1F1B" />
+                  <circle cx="75.4" cy="109.8" r="1.5" fill="#FFFFFF" />
+                  <ellipse cx="118" cy="113" rx="4.6" ry="5.4" fill="#2A1F1B" />
+                  <circle cx="119.5" cy="110.8" r="1.6" fill="#FFFFFF" />
                 </>
               )}
 
-              {/* Rosy blush */}
-              <ellipse cx="114" cy="127" rx="8.5" ry="5" fill="#FDA4AF" opacity={temperature <= 0 || isPetted ? 0.72 : 0.45} />
-              <ellipse cx="206" cy="127" rx="8.5" ry="5" fill="#FDA4AF" opacity={temperature <= 0 || isPetted ? 0.72 : 0.45} />
-
-              {/* Twitching pink guinea pig nose & signature Y-mouth */}
+              {/* Delicate tiny dusty-pink nose & minimal Y-mouth (NO whiskers) */}
               <g className="animate-cavy-nose">
-                <ellipse cx="160" cy="126" rx="7.5" ry="5.5" fill="#F9A8B8" />
-                <ellipse cx="158" cy="124.5" rx="2.4" ry="1.3" fill="rgba(255,255,255,0.55)" />
                 <path
-                  d="M160 131.5 V135.5 M160 135.5 Q154 140 150 136 M160 135.5 Q166 140 170 136"
-                  stroke="#78350F"
-                  strokeWidth="2"
+                  d="M 90 122 C 92 119.5, 97 119.5, 99 122 C 97.5 124.8, 95.5 126, 94.5 126 C 93.5 126, 91.5 124.8, 90 122 Z"
+                  fill="#DDA19B"
+                />
+                <path
+                  d="M 94.5 126 V 129 M 94.5 129 Q 90.5 132 88.5 129.5 M 94.5 129 Q 98.5 132 100.5 129.5"
+                  stroke="#7E554B"
+                  strokeWidth="1.6"
                   strokeLinecap="round"
                   fill="none"
                 />
-                {/* Cute whiskers */}
-                <path
-                  d="M142 128 L120 124 M142 132 L119 133 M178 128 L200 124 M178 132 L201 133"
-                  stroke="rgba(120, 72, 42, 0.45)"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                />
               </g>
 
-              {/* Frost breath puff when cold */}
+              {/* Frost breath puff when freezing / snowy */}
               {outfit.hasFrostBreath && (
-                <g className="animate-cavy-breath-puff" style={{ transformOrigin: '172px 136px' }}>
-                  <circle cx="174" cy="136" r="4" fill="rgba(255,255,255,0.68)" />
-                  <circle cx="182" cy="133" r="5.5" fill="rgba(255,255,255,0.55)" />
-                  <circle cx="191" cy="135" r="3.5" fill="rgba(255,255,255,0.45)" />
+                <g className="animate-cavy-breath-puff" style={{ transformOrigin: '80px 132px' }}>
+                  <circle cx="78" cy="132" r="3.2" fill="rgba(255,255,255,0.68)" />
+                  <circle cx="71" cy="130" r="4.4" fill="rgba(255,255,255,0.52)" />
+                  <circle cx="64" cy="132" r="2.8" fill="rgba(255,255,255,0.42)" />
                 </g>
               )}
 
-              {/* Hot summer sweat drop */}
+              {/* Subtle summer sweat drop when >= 33°C */}
               {outfit.hasSweatDrop && (
                 <path
-                  d="M206 96 C206 96, 212 104, 212 108 A6 6 0 1 1 200 108 C200 104, 206 96, 206 96 Z"
-                  fill="#7DD3FC"
-                  stroke="#E0F2FE"
-                  strokeWidth="1"
+                  d="M 134 92 C 134 92, 139 98, 139 101 A5 5 0 1 1 129 101 C 129 98, 134 92, 134 92 Z"
+                  fill="#8CE0FA"
                 />
               )}
             </g>
 
-            {/* 7. Eyewear */}
+            {/* 4. Eyewear (aligned to 3/4 eyes) */}
             <g>
               {outfit.eyewear === 'sunglasses' && (
                 <g>
-                  <rect x="115" y="103" width="36" height="22" rx="7" fill="#1C1917" stroke="#F59E0B" strokeWidth="2" />
-                  <rect x="169" y="103" width="36" height="22" rx="7" fill="#1C1917" stroke="#F59E0B" strokeWidth="2" />
-                  <line x1="151" y1="112" x2="169" y2="112" stroke="#F59E0B" strokeWidth="2.5" />
-                  <line x1="122" y1="107" x2="132" y2="121" stroke="rgba(255,255,255,0.35)" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="176" y1="107" x2="186" y2="121" stroke="rgba(255,255,255,0.35)" strokeWidth="2.5" strokeLinecap="round" />
+                  <circle cx="74" cy="112" r="10.5" fill="rgba(42,31,27,0.88)" stroke="#DFB164" strokeWidth="1.6" />
+                  <circle cx="118" cy="113" r="11" fill="rgba(42,31,27,0.88)" stroke="#DFB164" strokeWidth="1.6" />
+                  <path d="M 84.5 111 Q 96 108 107 111.5" stroke="#DFB164" strokeWidth="1.8" fill="none" />
+                  <line x1="69" y1="107" x2="76" y2="116" stroke="rgba(255,255,255,0.32)" strokeWidth="1.8" strokeLinecap="round" />
+                  <line x1="113" y1="108" x2="120" y2="117" stroke="rgba(255,255,255,0.32)" strokeWidth="1.8" strokeLinecap="round" />
                 </g>
               )}
 
               {outfit.eyewear === 'round-glasses' && (
                 <g>
-                  <circle cx="132" cy="114" r="14" fill="rgba(224,242,254,0.22)" stroke="#D97706" strokeWidth="2.2" />
-                  <circle cx="188" cy="114" r="14" fill="rgba(224,242,254,0.22)" stroke="#D97706" strokeWidth="2.2" />
-                  <path d="M146 113 Q160 109 174 113" stroke="#D97706" strokeWidth="2.2" fill="none" />
+                  <circle cx="74" cy="112" r="10.5" fill="rgba(230,244,255,0.18)" stroke="#8B5E3C" strokeWidth="1.7" />
+                  <circle cx="118" cy="113" r="11" fill="rgba(230,244,255,0.18)" stroke="#8B5E3C" strokeWidth="1.7" />
+                  <path d="M 84.5 111 Q 96 108 107 111.5" stroke="#8B5E3C" strokeWidth="1.7" fill="none" />
                 </g>
               )}
 
               {outfit.eyewear === 'snow-goggles' && (
                 <g>
-                  <rect x="108" y="99" width="104" height="28" rx="13" fill="#0F172A" />
-                  <rect x="113" y="103" width="94" height="20" rx="10" fill="url(#cavyCaramelFur)" />
-                  <path d="M124 106 L142 120 M162 106 L178 120" stroke="rgba(255,255,255,0.45)" strokeWidth="3" strokeLinecap="round" />
+                  <rect x="61" y="100" width="70" height="22" rx="10" fill="#293548" />
+                  <rect x="65" y="103" width="62" height="16" rx="8" fill="#E3974F" />
+                  <path d="M 76 106 L 88 116 M 102 106 L 114 116" stroke="rgba(255,255,255,0.45)" strokeWidth="2.4" strokeLinecap="round" />
                 </g>
               )}
             </g>
 
-            {/* 8. Headwear */}
-            <g>
+            {/* 5. Headwear (tilted gracefully on the 3/4 crown) */}
+            <g filter={`url(#${handDrawnFilterId})`}>
               {outfit.headwear === 'pom-beanie' && (
-                <g>
-                  <circle cx="160" cy="46" r="13" fill="#FFFFFF" />
-                  <path d="M114 90 C118 52, 202 52, 206 90 Z" fill="#E11D48" />
-                  <path d="M120 74 Q160 66 200 74" stroke="#FEF3C7" strokeWidth="6" fill="none" />
-                  <rect x="110" y="84" width="100" height="15" rx="7.5" fill="#F43F5E" stroke="#FFE4E6" strokeWidth="1.2" />
+                <g transform="translate(110, 72) rotate(5)">
+                  <circle cx="2" cy="-31" r="9.5" fill="#FBF7F0" />
+                  <path d="M -30 4 C -26 -24, 28 -24, 32 4 Z" fill="#C94B4B" />
+                  <path d="M -25 -9 Q 2 -15 27 -9" stroke="#F9EAC8" strokeWidth="4.5" fill="none" />
+                  <rect x="-33" y="-1" width="68" height="10" rx="5" fill="#DE6363" />
                 </g>
               )}
 
               {outfit.headwear === 'earmuffs' && (
                 <g>
-                  <path d="M96 92 C106 54, 214 54, 224 92" stroke="#F43F5E" strokeWidth="6" fill="none" strokeLinecap="round" />
-                  <circle cx="94" cy="100" r="16" fill="#FFFBEB" stroke="#FDE68A" strokeWidth="2" />
-                  <circle cx="226" cy="100" r="16" fill="#FFFBEB" stroke="#FDE68A" strokeWidth="2" />
+                  <path
+                    d="M 76 82 C 88 52, 134 50, 146 78"
+                    stroke="#D95D66"
+                    strokeWidth="4.5"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="75" cy="88" r="11.5" fill="#FAF2E4" />
+                  <circle cx="147" cy="84" r="12" fill="#FAF2E4" />
                 </g>
               )}
 
               {outfit.headwear === 'beret' && (
-                <g transform="translate(154, 78) rotate(-8)">
-                  <ellipse cx="0" cy="0" rx="48" ry="18" fill="#881337" />
-                  <path d="M-4 -18 Q0 -26 6 -21" stroke="#4C0519" strokeWidth="3" strokeLinecap="round" fill="none" />
-                  <ellipse cx="-14" cy="-5" rx="18" ry="5" fill="rgba(255,255,255,0.12)" />
+                <g transform="translate(116, 66) rotate(8)">
+                  <ellipse cx="0" cy="0" rx="33" ry="12" fill="#8C2F47" />
+                  <path d="M 2 -12 Q 6 -18 10 -14" stroke="#5E1D2E" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                  <ellipse cx="-10" cy="-3" rx="12" ry="3.5" fill="rgba(255,255,255,0.12)" />
                 </g>
               )}
 
               {outfit.headwear === 'newsboy' && (
-                <g>
-                  <path d="M114 88 C120 56, 200 56, 206 88 Z" fill="#78350F" />
-                  <path d="M116 86 Q160 77 216 90 Q190 96 150 91 Z" fill="#451A03" />
-                  <circle cx="160" cy="64" r="4" fill="#451A03" />
+                <g transform="translate(110, 70) rotate(-4)">
+                  <path d="M -32 4 C -24 -18, 26 -18, 34 4 Z" fill="#8D6143" />
+                  <path d="M -40 4 Q -10 -4 28 5 Q 0 10 -40 4 Z" fill="#5D3D27" />
+                  <circle cx="2" cy="-12" r="3" fill="#5D3D27" />
                 </g>
               )}
 
               {outfit.headwear === 'straw-hat' && (
-                <g>
-                  <ellipse cx="160" cy="84" rx="68" ry="14" fill="#FDE68A" stroke="#D97706" strokeWidth="1.5" />
-                  <path d="M122 82 L128 56 Q160 50 192 56 L198 82 Z" fill="#FEF08A" stroke="#D97706" strokeWidth="1.2" />
-                  <path d="M124 75 Q160 80 196 75 L197 82 Q160 87 123 82 Z" fill="#F43F5E" />
+                <g transform="translate(110, 70) rotate(3)">
+                  <ellipse cx="0" cy="4" rx="48" ry="10.5" fill="#F2D27C" />
+                  <path d="M -25 2 L -20 -17 Q 0 -22 20 -17 L 25 2 Z" fill="#F7DE94" />
+                  <path d="M -23 -3 Q 0 2 23 -3 L 24 2 Q 0 7 -24 2 Z" fill="#E16B66" />
                 </g>
               )}
 
               {outfit.headwear === 'sun-visor' && (
-                <g>
-                  <path d="M112 86 Q160 76 208 86 L204 75 Q160 66 116 75 Z" fill="#FFFFFF" />
-                  <path d="M110 85 Q160 78 214 94 Q162 103 110 85 Z" fill="rgba(34, 211, 238, 0.72)" stroke="#0891B2" strokeWidth="1.2" />
-                </g>
-              )}
-
-              {outfit.headwear === 'rain-hood' && (
-                <g>
-                  <path
-                    d="M100 132 C88 86, 114 58, 160 58 C206 58, 232 86, 220 132 C214 96, 194 82, 160 82 C126 82, 106 96, 100 132 Z"
-                    fill={outfit.rainGear === 'storm-slicker' ? 'rgba(249, 115, 22, 0.9)' : 'rgba(250, 204, 21, 0.9)'}
-                    stroke={outfit.rainGear === 'storm-slicker' ? '#EA580C' : '#CA8A04'}
-                    strokeWidth="1.5"
-                  />
+                <g transform="translate(106, 72) rotate(-5)">
+                  <path d="M -30 4 Q 0 -3 30 4 L 27 -5 Q 0 -11 -27 -5 Z" fill="#FAF6EE" />
+                  <path d="M -36 6 Q -6 -1 26 9 Q -8 15 -36 6 Z" fill="rgba(94, 200, 224, 0.78)" />
                 </g>
               )}
 
               {outfit.headwear === 'nightcap' && (
-                <g>
-                  <path d="M116 86 C126 52, 184 42, 224 68 C202 74, 198 84, 202 88 Z" fill="#1E3A8A" />
-                  <circle cx="148" cy="68" r="2.2" fill="#FDE047" />
-                  <circle cx="174" cy="62" r="1.8" fill="#FDE047" />
-                  <circle cx="226" cy="70" r="8" fill="#FEF08A" />
-                  <rect x="112" y="82" width="94" height="11" rx="5.5" fill="#E0F2FE" />
+                <g transform="translate(112, 71) rotate(4)">
+                  <path d="M -30 3 C -18 -24, 24 -28, 52 -6 C 34 -2, 30 4, 33 6 Z" fill="#3B518B" />
+                  <circle cx="-4" cy="-10" r="1.8" fill="#FDE047" />
+                  <circle cx="14" cy="-13" r="1.5" fill="#FDE047" />
+                  <circle cx="53" cy="-5" r="6" fill="#FAF0CA" />
+                  <rect x="-32" y="0" width="66" height="8" rx="4" fill="#EEF4FF" />
                 </g>
               )}
             </g>
 
-            {/* 9. Little Front Paws */}
-            <g>
-              <ellipse cx="122" cy="196" rx="11" ry="8" transform="rotate(-15 122 196)" fill="#FFF8EE" stroke="#E2D3C1" strokeWidth="1.2" />
-              <ellipse cx="198" cy="196" rx="11" ry="8" transform="rotate(15 198 196)" fill="#FFF8EE" stroke="#E2D3C1" strokeWidth="1.2" />
-            </g>
-
-            {/* 10. Handheld Props */}
+            {/* 6. Charming Foreground Companion Props */}
             <g>
               {outfit.handheldProp === 'hot-cocoa' && (
-                <g transform="translate(196, 184)">
-                  <rect x="0" y="6" width="22" height="22" rx="5" fill="#DC2626" />
-                  <path d="M22 11 C28 11, 28 23, 22 23" fill="none" stroke="#DC2626" strokeWidth="3.2" />
-                  <ellipse cx="11" cy="7" rx="9" ry="3.2" fill="#78350F" />
-                  <circle cx="8" cy="6" r="3" fill="#FFFFFF" />
-                  <circle cx="14" cy="6" r="2.5" fill="#FFFFFF" />
-                  <path d="M7 -2 Q4 -10 8 -16" stroke="rgba(255,255,255,0.75)" strokeWidth="2" strokeLinecap="round" fill="none" className="animate-cavy-steam" />
-                  <path d="M14 -3 Q18 -11 14 -18" stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinecap="round" fill="none" style={{ animationDelay: '0.8s' }} className="animate-cavy-steam" />
+                <g transform="translate(24, 146)">
+                  <rect x="0" y="6" width="20" height="20" rx="5" fill="#C94B4B" />
+                  <path d="M 0 11 C -6 11, -6 21, 0 21" fill="none" stroke="#C94B4B" strokeWidth="2.8" />
+                  <ellipse cx="10" cy="7" rx="8" ry="2.8" fill="#6D381C" />
+                  <circle cx="8" cy="6" r="2.5" fill="#FFFDF8" />
+                  <circle cx="13" cy="6" r="2.1" fill="#FFFDF8" />
+                  <path
+                    d="M 7 -1 Q 4 -8 8 -14"
+                    stroke="rgba(255,255,255,0.72)"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                    className="animate-cavy-steam"
+                  />
+                  <path
+                    d="M 14 -2 Q 17 -9 13 -15"
+                    stroke="rgba(255,255,255,0.62)"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                    style={{ animationDelay: '0.8s' }}
+                    className="animate-cavy-steam"
+                  />
                 </g>
               )}
 
               {outfit.handheldProp === 'sweet-potato' && (
-                <g transform="translate(192, 188)">
-                  <ellipse cx="14" cy="12" rx="14" ry="9" transform="rotate(-18 14 12)" fill="#7C2D12" />
-                  <ellipse cx="16" cy="12" rx="9" ry="6" transform="rotate(-18 16 12)" fill="#FBBF24" />
-                  <path d="M12 -2 Q9 -10 14 -16" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" fill="none" className="animate-cavy-steam" />
+                <g transform="translate(20, 152)">
+                  <ellipse cx="14" cy="11" rx="13" ry="8" transform="rotate(-14 14 11)" fill="#8B3B24" />
+                  <ellipse cx="16" cy="11" rx="8.5" ry="5.5" transform="rotate(-14 16 11)" fill="#F7BE49" />
+                  <path
+                    d="M 12 -1 Q 9 -8 14 -14"
+                    stroke="rgba(255,255,255,0.7)"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                    className="animate-cavy-steam"
+                  />
                 </g>
               )}
 
               {outfit.handheldProp === 'milk-tea' && (
-                <g transform="translate(198, 178)">
-                  <polygon points="3,8 21,8 18,32 6,32" fill="#FDE68A" stroke="#D97706" strokeWidth="1.2" />
-                  <rect x="2" y="6" width="20" height="4" rx="2" fill="#FFFFFF" />
-                  <line x1="14" y1="-4" x2="12" y2="10" stroke="#F43F5E" strokeWidth="3" strokeLinecap="round" />
-                  <circle cx="9" cy="27" r="2" fill="#451A03" />
-                  <circle cx="14" cy="26" r="2" fill="#451A03" />
-                  <circle cx="12" cy="29" r="2" fill="#451A03" />
+                <g transform="translate(26, 142)">
+                  <polygon points="3,8 19,8 16,30 6,30" fill="#F6D88C" />
+                  <rect x="2" y="6" width="18" height="3.5" rx="1.8" fill="#FAF6EE" />
+                  <line x1="13" y1="-3" x2="11" y2="10" stroke="#DE6B68" strokeWidth="2.6" strokeLinecap="round" />
+                  <circle cx="8.5" cy="25" r="1.8" fill="#4A2C1D" />
+                  <circle cx="13" cy="24" r="1.8" fill="#4A2C1D" />
+                  <circle cx="11" cy="27" r="1.8" fill="#4A2C1D" />
                 </g>
               )}
 
               {outfit.handheldProp === 'hay-clover' && (
-                <g transform="translate(188, 178)">
-                  <path d="M4 24 L26 2 M8 26 L30 12 M10 26 L20 0" stroke="#84CC16" strokeWidth="2.6" strokeLinecap="round" />
-                  <circle cx="26" cy="2" r="4" fill="#FACC15" />
-                  <circle cx="30" cy="12" r="3" fill="#4ADE80" />
+                <g transform="translate(22, 142)" filter={`url(#${handDrawnFilterId})`}>
+                  <path
+                    d="M 24 28 L 4 8 M 20 30 L 0 18 M 18 28 L 10 4"
+                    stroke="#7FB855"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <circle cx="4" cy="8" r="3.5" fill="#FDE047" />
+                  <circle cx="10" cy="4" r="2.8" fill="#FFFDF8" />
                 </g>
               )}
 
               {outfit.handheldProp === 'lemonade' && (
-                <g transform="translate(198, 178)">
-                  <polygon points="3,8 21,8 18,32 6,32" fill="rgba(254, 240, 138, 0.9)" stroke="#FFFFFF" strokeWidth="1.4" />
-                  <circle cx="19" cy="9" r="6" fill="#FACC15" stroke="#FEF9C3" strokeWidth="1.2" />
-                  <line x1="11" y1="-4" x2="13" y2="24" stroke="#38BDF8" strokeWidth="2.8" strokeLinecap="round" />
-                  <rect x="8" y="14" width="5" height="5" rx="1" fill="rgba(255,255,255,0.65)" />
+                <g transform="translate(26, 142)">
+                  <polygon
+                    points="3,8 19,8 16,30 6,30"
+                    fill="rgba(254, 240, 138, 0.88)"
+                    stroke="rgba(255,255,255,0.8)"
+                    strokeWidth="1.2"
+                  />
+                  <circle cx="17" cy="9" r="5" fill="#F5C73B" />
+                  <line x1="9" y1="-3" x2="11" y2="23" stroke="#53B8DF" strokeWidth="2.4" strokeLinecap="round" />
                 </g>
               )}
 
               {outfit.handheldProp === 'mini-fan' && (
-                <g transform="translate(198, 170)">
-                  <rect x="10" y="20" width="6" height="18" rx="3" fill="#0F766E" />
-                  <circle cx="13" cy="12" r="14" fill="rgba(204,251,241,0.35)" stroke="#2DD4BF" strokeWidth="2" />
-                  <g className="animate-cavy-fan-spin" style={{ transformOrigin: '13px 12px' }}>
-                    <ellipse cx="13" cy="5" rx="3" ry="6" fill="#5EEAD4" />
-                    <ellipse cx="13" cy="19" rx="3" ry="6" fill="#5EEAD4" />
-                    <ellipse cx="6" cy="12" rx="6" ry="3" fill="#99F6E4" />
-                    <ellipse cx="20" cy="12" rx="6" ry="3" fill="#99F6E4" />
+                <g transform="translate(22, 134)">
+                  <rect x="9" y="19" width="5" height="16" rx="2.5" fill="#497D74" />
+                  <circle cx="11.5" cy="11.5" r="12.5" fill="rgba(204,251,241,0.3)" stroke="#7DD3C6" strokeWidth="1.6" />
+                  <g className="animate-cavy-fan-spin" style={{ transformOrigin: '11.5px 11.5px' }}>
+                    <ellipse cx="11.5" cy="5.5" rx="2.6" ry="5.2" fill="#82E3D4" />
+                    <ellipse cx="11.5" cy="17.5" rx="2.6" ry="5.2" fill="#82E3D4" />
+                    <ellipse cx="5.5" cy="11.5" rx="5.2" ry="2.6" fill="#A9F3E7" />
+                    <ellipse cx="17.5" cy="11.5" rx="5.2" ry="2.6" fill="#A9F3E7" />
                   </g>
-                  <circle cx="13" cy="12" r="3" fill="#0F766E" />
+                  <circle cx="11.5" cy="11.5" r="2.6" fill="#497D74" />
                 </g>
               )}
 
               {outfit.handheldProp === 'lantern' && (
-                <g transform="translate(200, 176)">
-                  <circle cx="12" cy="24" r="24" fill="url(#lanternGlow)" />
-                  <line x1="12" y1="0" x2="12" y2="10" stroke="#FDE047" strokeWidth="2" />
-                  <rect x="4" y="10" width="16" height="22" rx="6" fill="#F59E0B" stroke="#FEF08A" strokeWidth="1.5" />
-                  <rect x="8" y="14" width="8" height="14" rx="3" fill="#FEF9C3" />
+                <g transform="translate(22, 130)" className="animate-cavy-lantern">
+                  <circle cx="11" cy="24" r="26" fill={`url(#${lanternGlowId})`} />
+                  <line x1="11" y1="2" x2="11" y2="11" stroke="#FDE047" strokeWidth="1.8" />
+                  <rect x="4" y="11" width="14" height="20" rx="5" fill="#E3973B" stroke="#FEF08A" strokeWidth="1.2" />
+                  <rect x="7.5" y="14.5" width="7" height="13" rx="3" fill="#FEF9C3" />
                 </g>
               )}
 
               {outfit.handheldProp === 'umbrella' && (
                 <g className="animate-cavy-umbrella">
-                  {/* Handle & shaft */}
-                  <line x1="204" y1="14" x2="204" y2="198" stroke="#E2E8F0" strokeWidth="3.5" strokeLinecap="round" />
-                  <path d="M204 198 C204 208, 192 208, 192 199" stroke="#78350F" strokeWidth="4" strokeLinecap="round" fill="none" />
-                  {/* Transparent bubble umbrella dome */}
-                  <path
-                    d="M104 72 C104 12, 304 12, 304 72 Q254 64 204 72 Q154 64 104 72 Z"
-                    fill="url(#bubbleDome)"
-                    stroke={isStorm ? '#60A5FA' : 'rgba(255,255,255,0.88)'}
-                    strokeWidth="2"
+                  <line
+                    x1="152"
+                    y1="14"
+                    x2="152"
+                    y2="136"
+                    stroke="rgba(236, 244, 255, 0.85)"
+                    strokeWidth="2.8"
+                    strokeLinecap="round"
                   />
-                  {/* Dome ribs */}
                   <path
-                    d="M204 20 Q164 38 148 68 M204 20 Q244 38 260 68 M204 20 V72"
-                    stroke="rgba(255,255,255,0.55)"
-                    strokeWidth="1.4"
+                    d="M 152 136 C 152 144, 142 144, 142 137"
+                    stroke="#8B5A3C"
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
                     fill="none"
                   />
-                  {/* Tiny raindrops sliding off umbrella */}
-                  <circle cx="146" cy="46" r="2.2" fill="rgba(255,255,255,0.85)" />
-                  <circle cx="256" cy="52" r="2.4" fill="rgba(255,255,255,0.85)" />
-                  <circle cx="222" cy="34" r="1.8" fill="rgba(255,255,255,0.9)" />
+                  <path
+                    d="M 52 68 C 52 10, 252 10, 252 68 Q 202 60 152 68 Q 102 60 52 68 Z"
+                    fill={`url(#${bubbleDomeId})`}
+                    stroke={isStorm ? '#7FB3F5' : 'rgba(255,255,255,0.85)'}
+                    strokeWidth="1.8"
+                  />
+                  <path
+                    d="M 152 18 Q 112 36 96 64 M 152 18 Q 192 36 208 64 M 152 18 V 68"
+                    stroke="rgba(255,255,255,0.5)"
+                    strokeWidth="1.2"
+                    fill="none"
+                  />
+                  <circle cx="96" cy="44" r="2" fill="rgba(255,255,255,0.85)" />
+                  <circle cx="204" cy="48" r="2.2" fill="rgba(255,255,255,0.85)" />
+                  <circle cx="174" cy="30" r="1.6" fill="rgba(255,255,255,0.9)" />
                 </g>
               )}
             </g>
 
-            {/* Snow dusting on hat/shoulders during snow */}
+            {/* Delicate snow dusting when snowing */}
             {outfit.hasSnowDust && (
-              <g fill="#FFFFFF" opacity="0.9">
-                <circle cx="136" cy="72" r="2.5" />
-                <circle cx="178" cy="68" r="2" />
-                <circle cx="114" cy="158" r="2.5" />
-                <circle cx="204" cy="160" r="2.2" />
+              <g fill="#FFFFFF" opacity="0.88">
+                <circle cx="98" cy="69" r="2.2" />
+                <circle cx="186" cy="84" r="2.4" />
+                <circle cx="212" cy="92" r="2" />
               </g>
             )}
           </g>
 
-          {/* 11. Floating Pet Hearts / Sparkles */}
+          {/* 7. Floating Pet Hearts / Sparkles */}
           {hearts.map((h) => (
             <g key={h.id} className="animate-cavy-heart" style={{ transformOrigin: `${h.x}px ${h.y}px` }}>
               {h.kind === 'heart' ? (
                 <path
-                  d={`M ${h.x} ${h.y} c -3 -5, -10 -4, -10 2 c 0 5, 10 11, 10 11 c 0 0, 10 -6, 10 -11 c 0 -6, -7 -7, -10 -2 z`}
+                  d={`M ${h.x} ${h.y} c -2.6 -4.5, -8.5 -3.5, -8.5 1.8 c 0 4.5, 8.5 9.5, 8.5 9.5 c 0 0, 8.5 -5, 8.5 -9.5 c 0 -5.3, -6 -6.3, -8.5 -1.8 z`}
                   fill="#FB7185"
                 />
               ) : (
                 <path
-                  d={`M ${h.x} ${h.y - 7} L ${h.x + 2} ${h.y - 2} L ${h.x + 7} ${h.y} L ${h.x + 2} ${h.y + 2} L ${h.x} ${h.y + 7} L ${h.x - 2} ${h.y + 2} L ${h.x - 7} ${h.y} L ${h.x - 2} ${h.y - 2} Z`}
+                  d={`M ${h.x} ${h.y - 6} L ${h.x + 1.8} ${h.y - 1.8} L ${h.x + 6} ${h.y} L ${h.x + 1.8} ${h.y + 1.8} L ${h.x} ${h.y + 6} L ${h.x - 1.8} ${h.y + 1.8} L ${h.x - 6} ${h.y} L ${h.x - 1.8} ${h.y - 1.8} Z`}
                   fill="#FDE047"
                 />
               )}
             </g>
           ))}
         </svg>
-
-        <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/25 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-md transition group-hover:bg-black/40">
-          <span>点我互动</span>
-          <span className="text-amber-300">✦</span>
-          <span>{outfit.outfitTitle}</span>
-        </span>
       </button>
     </div>
   );

@@ -1,32 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  CloudSun,
-  Compass,
-  Droplets,
-  Eye,
-  Gauge,
-  LayoutGrid,
-  MapPin,
-  RefreshCw,
-  Shirt,
-  Sparkles,
-  Sunrise,
-  Sunset,
-  Thermometer,
-  Volume2,
-  VolumeX,
-  Wind,
-} from 'lucide-react';
-import { GuineaPigMascot } from './components/mascot/GuineaPigMascot';
-import { LifestyleIndicesView } from './components/modules/LifestyleIndicesView';
-import { RoadmapModuleView } from './components/modules/RoadmapModuleView';
-import { WardrobeStudioView } from './components/modules/WardrobeStudioView';
+import { Menu, RefreshCw, Shirt, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { CityPickerModal } from './components/weather/CityPickerModal';
 import { DailyForecastCard } from './components/weather/DailyForecastCard';
+import { HeroWeatherCard } from './components/weather/HeroWeatherCard';
 import { HourlyForecastCard } from './components/weather/HourlyForecastCard';
 import { RealisticWeatherCanvas } from './components/weather/RealisticWeatherCanvas';
-import { WeatherConditionIcon } from './components/weather/WeatherConditionIcon';
-import { WeatherSimulatorBar } from './components/weather/WeatherSimulatorBar';
+import { SideMenuDrawer } from './components/weather/SideMenuDrawer';
+import {
+  WardrobeSimulatorSheet,
+  type SheetTab,
+} from './components/weather/WardrobeSimulatorSheet';
+import { WeatherDetailsCard } from './components/weather/WeatherDetailsCard';
+import { LifestyleIndicesView } from './components/modules/LifestyleIndicesView';
 import { resolveGuineaPigOutfit, type WardrobeLookPreset } from './data/outfits';
 import {
   CONDITION_LABELS,
@@ -35,12 +20,12 @@ import {
   fetchLiveWeather,
 } from './services/weatherApi';
 import type {
-  AppModuleId,
   CityLocation,
   TimeOfDay,
   WeatherCondition,
   WeatherSnapshot,
 } from './types/weather';
+import type { TempUnit } from './utils/tempUnit';
 import { weatherAudio } from './utils/weatherAudio';
 
 interface SimOverrides {
@@ -50,27 +35,117 @@ interface SimOverrides {
   timeOfDay: TimeOfDay;
 }
 
-const MODULES: Array<{ id: AppModuleId; label: string; icon: React.ReactNode }> = [
-  { id: 'weather', label: '今日天气', icon: <CloudSun className="h-4 w-4" /> },
-  { id: 'wardrobe', label: '豚鼠衣橱', icon: <Shirt className="h-4 w-4" /> },
-  { id: 'lifestyle', label: '生活指南', icon: <Compass className="h-4 w-4" /> },
-  { id: 'upcoming', label: '更多板块', icon: <LayoutGrid className="h-4 w-4" /> },
+const CITIES_STORAGE_KEY = 'guinea_life_pinned_cities_v1';
+const UNIT_STORAGE_KEY = 'guinea_life_temp_unit_v1';
+
+const DEFAULT_PINNED_CITIES: CityLocation[] = [
+  PRESET_CITIES[0], // 上海
+  PRESET_CITIES[1], // 北京
+  PRESET_CITIES[6], // 东京
+  PRESET_CITIES[7], // 伦敦
+  PRESET_CITIES[3], // 哈尔滨
 ];
 
+function loadPinnedCities(): CityLocation[] {
+  try {
+    const raw = localStorage.getItem(CITIES_STORAGE_KEY);
+    if (!raw) return DEFAULT_PINNED_CITIES;
+    const parsed = JSON.parse(raw) as CityLocation[];
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.name) {
+      return parsed;
+    }
+  } catch {
+    // ignore invalid localStorage
+  }
+  return DEFAULT_PINNED_CITIES;
+}
+
+function loadTempUnit(): TempUnit {
+  try {
+    const raw = localStorage.getItem(UNIT_STORAGE_KEY);
+    if (raw === 'F' || raw === 'C') return raw;
+  } catch {
+    // ignore
+  }
+  return 'C';
+}
+
+function formatCityLocalTime(city: CityLocation, fallbackTime: string, nowMs: number): string {
+  if (city.timezone && city.timezone !== 'auto') {
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: city.timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(new Date(nowMs));
+    } catch {
+      // fall through
+    }
+  }
+  const clean = fallbackTime.replace(/\s*\(.*\)$/, '').trim();
+  return clean || '--:--';
+}
+
 export function App() {
-  const [activeModule, setActiveModule] = useState<AppModuleId>('weather');
-  const [selectedCity, setSelectedCity] = useState<CityLocation>(PRESET_CITIES[0]);
+  const [pinnedCities, setPinnedCities] = useState<CityLocation[]>(loadPinnedCities);
+  const [activeCityIndex, setActiveCityIndex] = useState(0);
+  const [unit, setUnit] = useState<TempUnit>(loadTempUnit);
+
+  const selectedCity = pinnedCities[activeCityIndex] ?? pinnedCities[0] ?? PRESET_CITIES[0];
+
   const [liveWeather, setLiveWeather] = useState<WeatherSnapshot>(() =>
-    buildFallbackWeather(PRESET_CITIES[0])
+    buildFallbackWeather(selectedCity)
   );
   const [sim, setSim] = useState<SimOverrides | null>(null);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [cityModalOpen, setCityModalOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetTab, setSheetTab] = useState<SheetTab>('wardrobe');
+
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [startled, setStartled] = useState(false);
-  const [speechBubble, setSpeechBubble] = useState<string | null>(null);
-  const speechTimeoutRef = useRef<number | null>(null);
+  const [whisper, setWhisper] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const whisperTimeoutRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CITIES_STORAGE_KEY, JSON.stringify(pinnedCities));
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [pinnedCities]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(UNIT_STORAGE_KEY, unit);
+    } catch {
+      // ignore
+    }
+  }, [unit]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+        setCityModalOpen(false);
+        setSheetOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const loadWeatherForCity = useCallback(async (city: CityLocation) => {
     setLoading(true);
@@ -129,24 +204,19 @@ export function App() {
     ]
   );
 
-  // Sync Web Audio ambient profile
+  // Sync Web Audio ambient weather profile
   useEffect(() => {
     weatherAudio.update(effectiveWeather.condition, effectiveWeather.windSpeed);
   }, [effectiveWeather.condition, effectiveWeather.windSpeed]);
 
-  // Show contextual welcome quote whenever outfit tier or condition changes
-  useEffect(() => {
-    setSpeechBubble(outfit.reactionQuotes[0] ?? null);
-  }, [outfit.outfitTitle]);
-
-  const showBubble = (text: string) => {
-    setSpeechBubble(text);
-    if (speechTimeoutRef.current !== null) {
-      window.clearTimeout(speechTimeoutRef.current);
+  const handlePetMascot = (quote: string) => {
+    setWhisper(quote);
+    if (whisperTimeoutRef.current !== null) {
+      window.clearTimeout(whisperTimeoutRef.current);
     }
-    speechTimeoutRef.current = window.setTimeout(() => {
-      setSpeechBubble(outfit.reactionQuotes[0] ?? null);
-    }, 4200);
+    whisperTimeoutRef.current = window.setTimeout(() => {
+      setWhisper(null);
+    }, 3500);
   };
 
   const handleToggleSound = () => {
@@ -168,6 +238,32 @@ export function App() {
       timeOfDay: liveWeather.timeOfDay,
     };
 
+  const handleAddOrSelectCity = (city: CityLocation) => {
+    setSim(null);
+    const existingIdx = pinnedCities.findIndex(
+      (c) =>
+        c.name === city.name &&
+        Math.abs(c.latitude - city.latitude) < 0.08 &&
+        Math.abs(c.longitude - city.longitude) < 0.08
+    );
+    if (existingIdx >= 0) {
+      setActiveCityIndex(existingIdx);
+    } else {
+      setPinnedCities((prev) => [...prev, city]);
+      setActiveCityIndex(pinnedCities.length);
+    }
+  };
+
+  const handleRemoveCity = (idx: number) => {
+    if (pinnedCities.length <= 1) return;
+    setPinnedCities((prev) => prev.filter((_, i) => i !== idx));
+    setActiveCityIndex((prevIdx) => {
+      if (prevIdx > idx) return prevIdx - 1;
+      if (prevIdx === idx) return Math.max(0, idx - 1);
+      return prevIdx;
+    });
+  };
+
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
       setCityModalOpen(false);
@@ -184,7 +280,11 @@ export function App() {
           timezone: 'auto',
         };
         setSim(null);
-        setSelectedCity(myCity);
+        setPinnedCities((prev) => {
+          const filtered = prev.filter((c) => c.name !== '当前位置');
+          return [myCity, ...filtered];
+        });
+        setActiveCityIndex(0);
         setLocating(false);
         setCityModalOpen(false);
       },
@@ -213,11 +313,43 @@ export function App() {
     });
   };
 
-  const todayMinMax = effectiveWeather.daily[0];
+  const openSheet = (tab: SheetTab) => {
+    setSheetTab(tab);
+    setSheetOpen(true);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (t) touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    const t = e.changedTouches[0];
+    touchStartRef.current = null;
+    if (!start || !t || pinnedCities.length <= 1) return;
+
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+      setSim(null);
+      if (dx < 0) {
+        setActiveCityIndex((prev) => (prev + 1) % pinnedCities.length);
+      } else {
+        setActiveCityIndex((prev) => (prev - 1 + pinnedCities.length) % pinnedCities.length);
+      }
+    }
+  };
+
+  const localTimeStr = formatCityLocalTime(
+    effectiveWeather.city,
+    effectiveWeather.updatedAt,
+    nowMs
+  );
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden text-white">
-      {/* Fullscreen Realistic Canvas Weather Engine */}
+      {/* Full-bleed Dual-Layer Atmospheric Weather Engine */}
       <RealisticWeatherCanvas
         condition={effectiveWeather.condition}
         temperature={effectiveWeather.temperature}
@@ -227,308 +359,208 @@ export function App() {
         onLightningFlash={handleLightningFlash}
       />
 
-      {/* Subtle readability gradient scrim at very top & bottom */}
-      <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-b from-slate-950/25 via-transparent to-slate-950/35" />
+      {/* Editorial Mobile-First Vertical Column (Image 1 Composition) */}
+      <div className="relative z-10 mx-auto w-full max-w-[460px] px-4 pb-12">
+        {/* First Viewport: Top Chrome + Unobstructed Sky + Bottom Hero Card */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="flex min-h-[calc(100svh-64px)] flex-col justify-between pt-3 pb-3"
+        >
+          {/* Floating Minimal Top Bar */}
+          <header className="flex items-start justify-between gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="打开菜单"
+              className="rounded-full p-2 text-white/90 drop-shadow transition hover:bg-white/10 hover:text-white"
+            >
+              <Menu className="h-5 w-5" strokeWidth={1.7} />
+            </button>
 
-      {/* Main Content Container */}
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-4 pt-4 pb-10 sm:px-6 lg:px-8">
-        {/* Top Navigation Bar */}
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/20 bg-slate-950/30 px-4 py-3 shadow-xl backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 shadow-md">
-              <span className="text-xl leading-none" role="img" aria-label="豚鼠">
-                🐹
-              </span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-white sm:text-lg">
-                  豚鼠生活馆
-                </h1>
-                <span className="hidden rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/80 sm:inline-block">
-                  GuineaLife
-                </span>
-              </div>
-              <p className="text-[11px] text-white/65">每日气象 · 随温换装 · 生活灵感</p>
-            </div>
-          </div>
+            <div className="flex flex-col items-center text-center">
+              <button
+                type="button"
+                onClick={() => setCityModalOpen(true)}
+                className="text-lg font-normal tracking-wide text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.45)] transition hover:opacity-85"
+              >
+                {effectiveWeather.city.name}
+              </button>
 
-          {/* Lifestyle Module Switcher */}
-          <nav
-            aria-label="生活板块导航"
-            className="order-3 flex w-full items-center justify-between gap-1 rounded-2xl border border-white/15 bg-black/25 p-1 sm:order-2 sm:w-auto"
-          >
-            {MODULES.map((mod) => {
-              const active = activeModule === mod.id;
-              return (
+              {sim ? (
                 <button
-                  key={mod.id}
                   type="button"
-                  onClick={() => setActiveModule(mod.id)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-95 sm:flex-initial ${
-                    active
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'bg-transparent text-white/80 hover:bg-white/10 hover:text-white'
-                  }`}
+                  onClick={() => setSim(null)}
+                  className="mt-0.5 rounded-full border border-amber-200/35 bg-black/45 px-2.5 py-0.5 text-[11px] font-light text-amber-200 backdrop-blur-md transition hover:bg-black/65"
                 >
-                  {mod.icon}
-                  <span>{mod.label}</span>
+                  模拟中 · 点击恢复实时
                 </button>
-              );
-            })}
-          </nav>
+              ) : (
+                <div className="mt-0.5 text-xs font-light text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)] tabular-nums">
+                  {localTimeStr}
+                </div>
+              )}
 
-          {/* Location & Sound Controls */}
-          <div className="order-2 flex items-center gap-2 sm:order-3">
-            <button
-              type="button"
-              onClick={() => setCityModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/22"
-            >
-              <MapPin className="h-3.5 w-3.5 text-amber-300" />
-              <span>{effectiveWeather.city.name}</span>
-            </button>
+              {/* City Pagination Dots */}
+              {pinnedCities.length > 1 && (
+                <div className="mt-1.5 flex items-center gap-1.5" aria-label="切换城市">
+                  {pinnedCities.map((c, idx) => (
+                    <button
+                      key={`${c.name}-${idx}`}
+                      type="button"
+                      onClick={() => {
+                        setSim(null);
+                        setActiveCityIndex(idx);
+                      }}
+                      aria-label={`切换到 ${c.name}`}
+                      className={`h-1.5 rounded-full transition-all ${
+                        idx === activeCityIndex
+                          ? 'w-3 bg-white shadow-xs'
+                          : 'w-1.5 bg-white/45 hover:bg-white/75'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSim(null);
-                void loadWeatherForCity(selectedCity);
-              }}
-              aria-label="刷新实时天气"
-              title="刷新实时天气"
-              className="rounded-full border border-white/20 bg-white/10 p-2 text-white/85 transition hover:bg-white/20"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={handleToggleSound}
+                aria-label={soundEnabled ? '关闭环境声景' : '开启环境声景'}
+                title={soundEnabled ? '关闭环境声景' : '开启环境声景'}
+                className={`rounded-full p-2 drop-shadow transition hover:bg-white/10 ${
+                  soundEnabled ? 'text-amber-200' : 'text-white/85 hover:text-white'
+                }`}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-4.5 w-4.5" strokeWidth={1.7} />
+                ) : (
+                  <VolumeX className="h-4.5 w-4.5" strokeWidth={1.7} />
+                )}
+              </button>
 
-            <button
-              type="button"
-              onClick={handleToggleSound}
-              aria-label={soundEnabled ? '关闭环境声景' : '开启环境声景'}
-              title={soundEnabled ? '关闭环境声景' : '开启环境天气白噪音'}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                soundEnabled
-                  ? 'border-amber-300/60 bg-amber-400/25 text-amber-100'
-                  : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-              }`}
-            >
-              {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-              <span className="hidden md:inline">{soundEnabled ? '声景开' : '声景'}</span>
-            </button>
-          </div>
-        </header>
+              <button
+                type="button"
+                onClick={() => {
+                  setSim(null);
+                  void loadWeatherForCity(selectedCity);
+                }}
+                aria-label="刷新实时天气"
+                title="刷新实时天气"
+                className="rounded-full p-2 text-white/90 drop-shadow transition hover:bg-white/10 hover:text-white"
+              >
+                <RefreshCw
+                  className={`h-4.5 w-4.5 ${loading ? 'animate-spin' : ''}`}
+                  strokeWidth={1.7}
+                />
+              </button>
+            </div>
+          </header>
 
-        {/* Active Module Content */}
-        <main className="flex-1 space-y-6">
-          {activeModule === 'weather' && (
-            <>
-              {/* Hero Stage: Weather Telemetry + Dynamic Brown-and-White Guinea Pig */}
-              <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-                {/* Left: Weather Hero Card */}
-                <section className="flex flex-col justify-between rounded-3xl border border-white/20 bg-slate-950/28 p-6 shadow-2xl backdrop-blur-xl sm:p-7">
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/12 px-3 py-1 text-xs font-medium text-white">
-                          <WeatherConditionIcon
-                            condition={effectiveWeather.condition}
-                            isDay={effectiveWeather.isDay}
-                            className="h-3.5 w-3.5"
-                          />
-                          {effectiveWeather.isSimulated ? '实验室模拟天气' : '实时气象站'}
-                        </span>
-                        {effectiveWeather.isOfflineFallback && !effectiveWeather.isSimulated && (
-                          <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[11px] text-amber-200">
-                            示例模式
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-white/65 tabular-nums">
-                        更新于 {effectiveWeather.updatedAt}
-                      </span>
-                    </div>
+          {/* Open Realistic Sky Spacer */}
+          <div className="min-h-[30svh] flex-1" />
 
-                    <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-                      <div>
-                        <div className="flex items-start gap-1">
-                          <span className="text-7xl font-light tracking-tight text-white tabular-nums sm:text-8xl">
-                            {effectiveWeather.temperature}
-                          </span>
-                          <span className="mt-2 text-3xl font-light text-white/85">°C</span>
-                        </div>
-                        <div className="mt-1 flex items-center gap-3 text-base font-medium text-white/95">
-                          <span>{effectiveWeather.conditionLabel}</span>
-                          {todayMinMax && (
-                            <span className="text-sm text-white/70 tabular-nums">
-                              最高 {todayMinMax.tempMax}° · 最低 {todayMinMax.tempMin}°
-                            </span>
-                          )}
-                        </div>
-                      </div>
+          {/* Image-1 Signature Bottom Hero Card (Temp + Hand-drawn Guinea Pig) */}
+          <HeroWeatherCard
+            weather={effectiveWeather}
+            outfit={outfit}
+            unit={unit}
+            startled={startled}
+            whisper={whisper}
+            onPet={handlePetMascot}
+            onOpenWardrobe={() => openSheet('wardrobe')}
+          />
+        </div>
 
-                      <div className="flex flex-col items-start gap-1.5 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs text-white/85 sm:items-end">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Thermometer className="h-3.5 w-3.5 text-amber-300" />
-                          体感温度{' '}
-                          <strong className="font-semibold text-white tabular-nums">
-                            {effectiveWeather.apparentTemperature}°C
-                          </strong>
-                        </span>
-                        <span className="inline-flex items-center gap-2 text-white/70 tabular-nums">
-                          <span className="inline-flex items-center gap-1">
-                            <Sunrise className="h-3.5 w-3.5 text-amber-200" />
-                            {effectiveWeather.sunrise}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <Sunset className="h-3.5 w-3.5 text-orange-300" />
-                            {effectiveWeather.sunset}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+        {/* Below-the-Fold Scrollable Feed (Top header of Hourly peeks at fold!) */}
+        <main className="space-y-3">
+          <HourlyForecastCard hourly={effectiveWeather.hourly} unit={unit} />
+          <DailyForecastCard daily={effectiveWeather.daily} unit={unit} />
+          <WeatherDetailsCard
+            weather={effectiveWeather}
+            unit={unit}
+            localTimeStr={localTimeStr}
+          />
+          <LifestyleIndicesView weather={effectiveWeather} />
 
-                  {/* 4 Key Telemetry Tiles */}
-                  <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div className="rounded-2xl border border-white/15 bg-white/8 p-3">
-                      <div className="flex items-center gap-1.5 text-[11px] text-white/65">
-                        <Droplets className="h-3.5 w-3.5 text-sky-300" />
-                        空气湿度
-                      </div>
-                      <div className="mt-1.5 text-lg font-semibold text-white tabular-nums">
-                        {effectiveWeather.humidity}%
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/15 bg-white/8 p-3">
-                      <div className="flex items-center gap-1.5 text-[11px] text-white/65">
-                        <Wind className="h-3.5 w-3.5 text-teal-300" />
-                        风速风向
-                      </div>
-                      <div className="mt-1.5 text-lg font-semibold text-white tabular-nums">
-                        {effectiveWeather.windSpeed} <span className="text-xs font-normal">km/h</span>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/15 bg-white/8 p-3">
-                      <div className="flex items-center gap-1.5 text-[11px] text-white/65">
-                        <Eye className="h-3.5 w-3.5 text-indigo-200" />
-                        能见度
-                      </div>
-                      <div className="mt-1.5 text-lg font-semibold text-white tabular-nums">
-                        {effectiveWeather.visibility} <span className="text-xs font-normal">km</span>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/15 bg-white/8 p-3">
-                      <div className="flex items-center gap-1.5 text-[11px] text-white/65">
-                        <Gauge className="h-3.5 w-3.5 text-amber-200" />
-                        气压 / UV
-                      </div>
-                      <div className="mt-1.5 text-lg font-semibold text-white tabular-nums">
-                        {effectiveWeather.pressure}
-                        <span className="ml-1 text-[11px] font-normal text-white/65">
-                          · UV {effectiveWeather.uvIndex}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Right: Dynamic Brown-and-White Guinea Pig Centerpiece */}
-                <section className="relative flex flex-col items-center justify-between rounded-3xl border border-white/20 bg-slate-950/25 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
-                  {/* Speech bubble */}
-                  {speechBubble && (
-                    <div className="relative mb-1 max-w-sm rounded-2xl border border-white/25 bg-white/90 px-4 py-2.5 text-center text-xs font-medium text-slate-800 shadow-lg backdrop-blur-md">
-                      <span>{speechBubble}</span>
-                      <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-r border-b border-white/25 bg-white/90" />
-                    </div>
-                  )}
-
-                  <GuineaPigMascot
-                    outfit={outfit}
-                    condition={effectiveWeather.condition}
-                    temperature={effectiveWeather.temperature}
-                    startled={startled}
-                    onPet={(quote) => showBubble(quote)}
-                  />
-
-                  {/* Outfit Summary Pill */}
-                  <div className="mt-2 w-full rounded-2xl border border-white/15 bg-black/25 p-3.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-200">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        {outfit.tierLabel} · 棕白豚鼠实时穿搭
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveModule('wardrobe')}
-                        className="text-xs font-medium text-sky-200 underline-offset-2 hover:underline"
-                      >
-                        进衣橱试穿 →
-                      </button>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-white/80">{outfit.description}</p>
-                  </div>
-                </section>
-              </div>
-
-              {/* Interactive Weather & Outfit Simulator */}
-              <WeatherSimulatorBar
-                isSimulated={Boolean(sim)}
-                temperature={effectiveWeather.temperature}
-                condition={effectiveWeather.condition}
-                windSpeed={effectiveWeather.windSpeed}
-                timeOfDay={effectiveWeather.timeOfDay}
-                onChangeTemp={(t) => setSim({ ...ensureSim(), temperature: t })}
-                onChangeCondition={(c) => setSim({ ...ensureSim(), condition: c })}
-                onChangeWind={(w) => setSim({ ...ensureSim(), windSpeed: w })}
-                onChangeTimeOfDay={(tod) => setSim({ ...ensureSim(), timeOfDay: tod })}
-                onResetLive={() => setSim(null)}
-              />
-
-              {/* Forecasts Bento */}
-              <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
-                <HourlyForecastCard hourly={effectiveWeather.hourly} />
-                <DailyForecastCard daily={effectiveWeather.daily} />
-              </div>
-            </>
-          )}
-
-          {activeModule === 'wardrobe' && (
-            <WardrobeStudioView
-              currentOutfit={outfit}
-              currentTemp={effectiveWeather.temperature}
-              currentCondition={effectiveWeather.condition}
-              isSimulated={Boolean(sim)}
-              onApplyPreset={handleApplyWardrobePreset}
-              onApplyTempSample={handleApplyTempSample}
-              onResetLive={() => setSim(null)}
-            />
-          )}
-
-          {activeModule === 'lifestyle' && <LifestyleIndicesView weather={effectiveWeather} />}
-
-          {activeModule === 'upcoming' && <RoadmapModuleView />}
+          {/* Minimal Lab Triggers & Attribution */}
+          <footer className="flex flex-col items-center gap-3 pt-3 text-center">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openSheet('wardrobe')}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3.5 py-1.5 text-xs font-light text-white/85 backdrop-blur-md transition hover:bg-black/60 hover:text-white"
+              >
+                <Shirt className="h-3.5 w-3.5 text-amber-200" strokeWidth={1.6} />
+                豚鼠衣橱
+              </button>
+              <button
+                type="button"
+                onClick={() => openSheet('simulator')}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3.5 py-1.5 text-xs font-light text-white/85 backdrop-blur-md transition hover:bg-black/60 hover:text-white"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 text-sky-200" strokeWidth={1.6} />
+                天气模拟
+              </button>
+            </div>
+            <p className="text-[11px] font-light text-white/50">
+              豚鼠生活馆 GuineaLife · 实时气象由 Open-Meteo 提供
+            </p>
+          </footer>
         </main>
-
-        {/* Subtle Footer */}
-        <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 text-xs text-white/55">
-          <span>豚鼠生活馆 GuineaLife · 第一板块：真实天气引擎 & 动态换装棕白豚鼠</span>
-          <span>实时气象数据由 Open-Meteo 提供 · 支持全球城市检索</span>
-        </footer>
       </div>
 
-      {/* City Picker Modal */}
+      {/* Slide-over Left Menu Drawer */}
+      <SideMenuDrawer
+        open={drawerOpen}
+        pinnedCities={pinnedCities}
+        activeCityIndex={activeCityIndex}
+        unit={unit}
+        soundEnabled={soundEnabled}
+        locating={locating}
+        onClose={() => setDrawerOpen(false)}
+        onSelectCityIndex={(idx) => {
+          setSim(null);
+          setActiveCityIndex(idx);
+        }}
+        onRemoveCity={handleRemoveCity}
+        onOpenCityPicker={() => setCityModalOpen(true)}
+        onLocateMe={handleLocateMe}
+        onToggleUnit={setUnit}
+        onToggleSound={handleToggleSound}
+        onOpenSheet={openSheet}
+      />
+
+      {/* Compact Live-Preview Wardrobe & Simulator Bottom Sheet */}
+      <WardrobeSimulatorSheet
+        open={sheetOpen}
+        activeTab={sheetTab}
+        onChangeTab={setSheetTab}
+        onClose={() => setSheetOpen(false)}
+        currentOutfit={outfit}
+        isSimulated={Boolean(sim)}
+        temperature={effectiveWeather.temperature}
+        condition={effectiveWeather.condition}
+        windSpeed={effectiveWeather.windSpeed}
+        timeOfDay={effectiveWeather.timeOfDay}
+        unit={unit}
+        onApplyPreset={handleApplyWardrobePreset}
+        onApplyTempSample={handleApplyTempSample}
+        onChangeTemp={(t) => setSim({ ...ensureSim(), temperature: t })}
+        onChangeCondition={(c) => setSim({ ...ensureSim(), condition: c })}
+        onChangeWind={(w) => setSim({ ...ensureSim(), windSpeed: w })}
+        onChangeTimeOfDay={(tod) => setSim({ ...ensureSim(), timeOfDay: tod })}
+        onResetLive={() => setSim(null)}
+      />
+
+      {/* Global City Picker Modal */}
       <CityPickerModal
         open={cityModalOpen}
         currentCity={effectiveWeather.city}
         onClose={() => setCityModalOpen(false)}
-        onSelectCity={(city) => {
-          setSim(null);
-          setSelectedCity(city);
-        }}
+        onSelectCity={handleAddOrSelectCity}
         onLocateMe={handleLocateMe}
         locating={locating}
       />
