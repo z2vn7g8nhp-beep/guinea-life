@@ -65,9 +65,17 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
       <aside className="animate-ui-drawer relative z-10 flex h-full w-[300px] max-w-[85vw] flex-col border-r border-white/14 bg-slate-950/92 text-white shadow-2xl backdrop-blur-2xl sm:w-[330px]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/12 px-5 py-4">
-          <div>
-            <div className="text-[17px] font-medium tracking-wide text-white">豚鼠生活馆</div>
-            <div className="text-[13px] font-normal text-white/60">GuineaLife · 真实气象</div>
+          <div className="flex items-center gap-3">
+            <img
+              src={`${import.meta.env.BASE_URL || '/'}icon-192.png`}
+              alt="豚鼠生活馆"
+              draggable={false}
+              className="h-10 w-10 rounded-xl object-cover shadow-md ring-1 ring-white/15"
+            />
+            <div>
+              <div className="text-[17px] font-medium tracking-wide text-white">豚鼠生活馆</div>
+              <div className="text-[12px] font-normal text-white/60">GuineaLife · 真实气象</div>
+            </div>
           </div>
           <button
             type="button"

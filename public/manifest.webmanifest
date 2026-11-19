@@ -1,17 +1,28 @@
 {
   "name": "豚鼠生活馆 GuineaLife",
   "short_name": "豚鼠生活",
-  "description": "沉浸式天气特效与动态换装棕白豚鼠生活助手",
+  "description": "沉浸式真实天气特效与手绘棕白豚鼠生活馆",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "icons": [
     {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "./favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/svg+xml"
     }
   ]
 }
