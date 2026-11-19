@@ -94,6 +94,7 @@ export interface WeatherSnapshot {
   sunrise: string;
   sunset: string;
   updatedAt: string;
+  utcOffsetSeconds?: number;
   hourly: HourlyPoint[];
   daily: DailyPoint[];
   airQuality?: AirQualityInfo;

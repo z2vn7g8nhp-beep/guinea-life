@@ -132,12 +132,12 @@ export const HeroWeatherCard: React.FC<HeroWeatherCardProps> = ({
         </div>
 
         {/* Hairline Bottom Outfit & Quick Interaction Row */}
-        <div className="mt-3.5 flex items-center justify-between gap-2 border-t border-white/12 pt-3">
-          <div className="flex min-w-0 items-center gap-1.5">
+        <div className="mt-3.5 flex items-center justify-between gap-2.5 border-t border-white/12 pt-3">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
             {isOutfitLocked && (
               <Lock className="h-3.5 w-3.5 shrink-0 text-amber-200" strokeWidth={2} />
             )}
-            <span className="truncate text-[13px] font-normal text-white/86">
+            <span className="truncate text-[13px] font-normal text-white/88">
               穿搭 · {outfit.outfitTitle}
             </span>
           </div>
@@ -148,7 +148,7 @@ export const HeroWeatherCard: React.FC<HeroWeatherCardProps> = ({
               onClick={onFeed}
               title={`投喂${snack.label}`}
               aria-label={`投喂${snack.label}`}
-              className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[12px] font-normal text-white/92 transition hover:bg-white/20 active:scale-95"
+              className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[12px] font-normal whitespace-nowrap text-white/92 transition hover:bg-white/20 active:scale-95"
             >
               <span aria-hidden="true">{snack.emoji}</span>
               <span>投喂</span>
@@ -159,7 +159,7 @@ export const HeroWeatherCard: React.FC<HeroWeatherCardProps> = ({
               onClick={onOpenPostcard}
               title="生成今日豚鼠明信片"
               aria-label="生成今日豚鼠明信片"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/90 transition hover:bg-white/20 active:scale-95"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/90 transition hover:bg-white/20 active:scale-95"
             >
               <Camera className="h-3.5 w-3.5" strokeWidth={1.8} />
             </button>
@@ -167,7 +167,7 @@ export const HeroWeatherCard: React.FC<HeroWeatherCardProps> = ({
             <button
               type="button"
               onClick={onOpenWardrobe}
-              className="inline-flex items-center gap-0.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[12px] font-normal text-amber-200 transition hover:bg-white/20 hover:text-white active:scale-95"
+              className="inline-flex items-center gap-0.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[12px] font-normal whitespace-nowrap text-amber-200 transition hover:bg-white/20 hover:text-white active:scale-95"
             >
               <span>衣橱</span>
               <ChevronRight className="h-3.5 w-3.5" />

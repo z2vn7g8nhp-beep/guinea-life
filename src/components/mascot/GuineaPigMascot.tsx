@@ -1,8 +1,14 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GuineaPigOutfit, MascotCoatId, MascotSnackId, WeatherCondition } from '../../types/weather';
-import { getCoatMeta, getRecoloredSpriteUrl, type MascotSpriteKey } from '../../utils/mascotCoat';
-import { getOutfitLayerUrl, type GouacheOutfitLayerKey } from '../../utils/mascotOutfitPainter';
+import {
+  getCoatMeta,
+  getRecoloredSpriteUrl,
+  type GarmentVariantId,
+  type MascotSpriteKey,
+} from '../../utils/mascotCoat';
 import { weatherAudio } from '../../utils/weatherAudio';
+
+export type MascotPropMode = 'none' | 'umbrella' | 'blizzard' | 'snow-dust' | 'fan' | 'lantern';
 
 interface GuineaPigMascotProps {
   outfit: GuineaPigOutfit;
@@ -23,46 +29,91 @@ interface FloatingHeart {
   kind: 'heart' | 'sparkle' | 'crumb';
 }
 
-export type { MascotSpriteKey };
+export type { GarmentVariantId, MascotSpriteKey };
+
+function temperatureFallbackSprite(tierId: GuineaPigOutfit['tierId']): MascotSpriteKey {
+  if (tierId === 'freezing' || tierId === 'cold') return 'cold';
+  if (tierId === 'cool') return 'cool';
+  if (tierId === 'mild' || tierId === 'warm') return 'mild';
+  return 'base';
+}
 
 export function resolveMascotVisual(
   outfit: GuineaPigOutfit,
   condition: WeatherCondition
-): { spriteKey: MascotSpriteKey; layerKey: GouacheOutfitLayerKey | null } {
+): {
+  spriteKey: MascotSpriteKey;
+  garmentVariant: GarmentVariantId;
+  propMode: MascotPropMode;
+} {
   if (outfit.rainGear !== 'none') {
     return {
-      spriteKey: 'base',
-      layerKey: outfit.rainGear === 'storm-slicker' ? 'storm' : 'rain',
+      spriteKey: 'cold',
+      garmentVariant: outfit.rainGear === 'storm-slicker' ? 'storm-rain' : 'honey-rain',
+      propMode: 'umbrella',
+    };
+  }
+  if (condition === 'blizzard' || outfit.eyewear === 'snow-goggles') {
+    return {
+      spriteKey: 'cold',
+      garmentVariant: 'navy-winter',
+      propMode: 'blizzard',
+    };
+  }
+  if (outfit.tierId === 'freezing') {
+    return {
+      spriteKey: 'cold',
+      garmentVariant: 'pine-winter',
+      propMode: 'snow-dust',
+    };
+  }
+  if (condition === 'fog') {
+    return {
+      spriteKey: 'cool',
+      garmentVariant: 'default',
+      propMode: outfit.handheldProp === 'lantern' ? 'lantern' : 'none',
     };
   }
   if (outfit.headwear === 'nightcap') {
-    return { spriteKey: 'base', layerKey: 'night' };
-  }
-  if (condition === 'blizzard' || outfit.eyewear === 'snow-goggles') {
-    return { spriteKey: 'base', layerKey: 'blizzard' };
-  }
-  if (outfit.tierId === 'freezing') {
-    return { spriteKey: 'base', layerKey: 'freezing' };
-  }
-  if (condition === 'fog') {
-    return { spriteKey: 'cool', layerKey: null };
-  }
-  if (outfit.tierId === 'warm') {
-    return { spriteKey: 'base', layerKey: 'warm' };
-  }
-  if (outfit.tierId === 'hot') {
-    return { spriteKey: 'base', layerKey: 'hot' };
+    return {
+      spriteKey: temperatureFallbackSprite(outfit.tierId),
+      garmentVariant: outfit.tierId === 'warm' ? 'sky-denim' : 'default',
+      propMode: 'lantern',
+    };
   }
   if (outfit.tierId === 'cold') {
-    return { spriteKey: 'cold', layerKey: null };
+    return {
+      spriteKey: 'cold',
+      garmentVariant: 'default',
+      propMode: outfit.handheldProp === 'lantern' ? 'lantern' : outfit.hasSnowDust ? 'snow-dust' : 'none',
+    };
   }
   if (outfit.tierId === 'cool') {
-    return { spriteKey: 'cool', layerKey: null };
+    return {
+      spriteKey: 'cool',
+      garmentVariant: 'default',
+      propMode: outfit.handheldProp === 'lantern' ? 'lantern' : outfit.hasSnowDust ? 'snow-dust' : 'none',
+    };
   }
   if (outfit.tierId === 'mild') {
-    return { spriteKey: 'mild', layerKey: null };
+    return {
+      spriteKey: 'mild',
+      garmentVariant: 'default',
+      propMode: outfit.handheldProp === 'lantern' ? 'lantern' : outfit.hasSnowDust ? 'snow-dust' : 'none',
+    };
   }
-  return { spriteKey: 'base', layerKey: null };
+  if (outfit.tierId === 'warm') {
+    return {
+      spriteKey: 'mild',
+      garmentVariant: 'sky-denim',
+      propMode: outfit.handheldProp === 'lantern' ? 'lantern' : 'none',
+    };
+  }
+  return {
+    spriteKey: 'base',
+    garmentVariant: 'default',
+    propMode: 'fan',
+  };
 }
 
 export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
@@ -83,7 +134,6 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
   const [activeSnack, setActiveSnack] = useState<MascotSnackId>('hay');
   const [hearts, setHearts] = useState<FloatingHeart[]>([]);
   const [quoteIdx, setQuoteIdx] = useState(0);
-  const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
 
   const petTimerRef = useRef<number | null>(null);
   const eatTimerRef = useRef<number | null>(null);
@@ -92,7 +142,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
 
   const baseUrl = import.meta.env.BASE_URL || '/';
   const baseSpriteUrl = `${baseUrl}assets/mascot/base.webp`;
-  const { spriteKey, layerKey } = useMemo(
+  const { spriteKey, garmentVariant, propMode } = useMemo(
     () => resolveMascotVisual(outfit, condition),
     [outfit, condition]
   );
@@ -100,24 +150,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
   const rawSpriteUrl = `${baseUrl}assets/mascot/${spriteKey}.webp`;
   const [displaySpriteUrl, setDisplaySpriteUrl] = useState<string>(rawSpriteUrl);
 
-  // Paint gouache outfit layer on offscreen canvas when active
-  useEffect(() => {
-    let cancelled = false;
-    if (!layerKey) {
-      setOverlayUrl(null);
-      return;
-    }
-    void getOutfitLayerUrl(layerKey, baseSpriteUrl).then((url) => {
-      if (!cancelled) {
-        setOverlayUrl(url || null);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [layerKey, baseSpriteUrl]);
-
-  // Preload 4 core sprites once for instant switching
+  // Preload 4 core hand-painted sprites once
   useEffect(() => {
     (['base', 'mild', 'cool', 'cold'] as MascotSpriteKey[]).forEach((k) => {
       const img = new Image();
@@ -125,22 +158,24 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
     });
   }, [baseUrl]);
 
-  // Apply selected coat recoloring cleanly
+  // Apply seamless coat fur + garment gouache recoloring
   useEffect(() => {
     let cancelled = false;
-    if (coatId === 'classic') {
+    if (coatId === 'classic' && garmentVariant === 'default') {
       setDisplaySpriteUrl(rawSpriteUrl);
       return;
     }
-    void getRecoloredSpriteUrl(spriteKey, rawSpriteUrl, baseSpriteUrl, coatId).then((url) => {
-      if (!cancelled) {
-        setDisplaySpriteUrl(url);
+    void getRecoloredSpriteUrl(spriteKey, rawSpriteUrl, baseSpriteUrl, coatId, garmentVariant).then(
+      (url) => {
+        if (!cancelled) {
+          setDisplaySpriteUrl(url);
+        }
       }
-    });
+    );
     return () => {
       cancelled = true;
     };
-  }, [spriteKey, rawSpriteUrl, baseSpriteUrl, coatId]);
+  }, [spriteKey, rawSpriteUrl, baseSpriteUrl, coatId, garmentVariant]);
 
   // Natural blinking loop (2.8s - 5.6s)
   useEffect(() => {
@@ -163,7 +198,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
     };
   }, []);
 
-  // Cleanup pet/eat/heart timers on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (petTimerRef.current !== null) window.clearTimeout(petTimerRef.current);
@@ -245,19 +280,22 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
     : 'animate-cavy-breathe';
 
   const isStorm = condition === 'thunderstorm' || condition === 'heavy-rain';
-  const isRainy = outfit.rainGear !== 'none';
-  const isNightLantern = layerKey === 'night';
-  const isFogGlasses = outfit.eyewear === 'round-glasses';
-  const isSunglasses = outfit.eyewear === 'sunglasses' && layerKey !== 'blizzard';
-  const eyesCovered = layerKey === 'blizzard' || isSunglasses;
+  const isRainy = propMode === 'umbrella';
+  const isNightLantern = propMode === 'lantern';
+  const isBlizzardGoggles = propMode === 'blizzard';
+  const isFogGlasses = outfit.eyewear === 'round-glasses' && !isBlizzardGoggles;
+  const isSunglasses = outfit.eyewear === 'sunglasses' && !isBlizzardGoggles;
+  const eyesCovered = isBlizzardGoggles || isSunglasses;
   const coatMeta = getCoatMeta(coatId);
 
   const umbrellaGradId = `umbrellaDome-${uid}`;
   const lanternGlowId = `lanternAura-${uid}`;
   const lensGradId = `sunLens-${uid}`;
+  const skiLensGradId = `skiLens-${uid}`;
+  const maskGradId = `aqiMask-${uid}`;
 
-  // Calibrated 560x420 sprite landmarks:
-  // Left Eye: (140, 224), Right Eye: (232, 229), Nose/Snout: (158, 274)
+  // Calibrated 560x420 eyeball centers:
+  // Left Eye: (136, 226), Right Eye: (230, 235), Nose/Snout: (158, 274)
   return (
     <div className="relative flex flex-col items-center select-none">
       <button
@@ -267,7 +305,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
         aria-label={`摸摸${customName}，当前穿搭：${outfit.outfitTitle}`}
         className="group relative cursor-pointer rounded-3xl transition-transform duration-300 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
       >
-        {/* Subtle atmospheric backlight behind the perched guinea pig */}
+        {/* Atmospheric backlight behind the perched guinea pig */}
         <div
           className="pointer-events-none absolute inset-x-6 top-8 bottom-2 rounded-full opacity-45 blur-2xl transition-colors duration-700"
           style={{
@@ -280,12 +318,12 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
           }}
         />
 
-        {/* Fixed 4:3 Stage preventing layout shift across outfit & coat changes */}
+        {/* Fixed 4:3 Stage preventing layout shift */}
         <div
           className={`relative z-10 aspect-[4/3] w-[228px] sm:w-[252px] ${bodyAnimClass}`}
           style={{ transformOrigin: 'center 94%' }}
         >
-          {/* Base Gouache Raster Sprite (with dynamic coat color transfer) */}
+          {/* Hand-Painted Gouache Sprite (with coat fur & garment color variants) */}
           <img
             src={displaySpriteUrl}
             alt={customName}
@@ -293,18 +331,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
             className="pointer-events-none h-full w-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.34)] transition-opacity duration-200"
           />
 
-          {/* Painterly Gouache Outfit Layer (aligned 560x420) */}
-          {overlayUrl && (
-            <img
-              src={overlayUrl}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className="pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.18)]"
-            />
-          )}
-
-          {/* Lightweight Interactive & Animated SVG Overlay (Eyes, Mask, Props, Particles) */}
+          {/* Interactive & Animated Storybook SVG Details */}
           <svg
             viewBox="0 0 560 420"
             className="pointer-events-none absolute inset-0 h-full w-full"
@@ -325,6 +352,17 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               <linearGradient id={lensGradId} x1="20%" y1="0%" x2="80%" y2="100%">
                 <stop offset="0%" stopColor="rgba(56, 36, 26, 0.9)" />
                 <stop offset="100%" stopColor="rgba(30, 22, 18, 0.82)" />
+              </linearGradient>
+
+              <linearGradient id={skiLensGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgba(248, 184, 96, 0.94)" />
+                <stop offset="55%" stopColor="rgba(226, 136, 118, 0.92)" />
+                <stop offset="100%" stopColor="rgba(190, 108, 162, 0.92)" />
+              </linearGradient>
+
+              <linearGradient id={maskGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#E6F5FC" />
+                <stop offset="100%" stopColor="#C7E6F4" />
               </linearGradient>
             </defs>
 
@@ -362,8 +400,8 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               </g>
             )}
 
-            {/* 2. Spinning Pastel Mint Mini Fan (Hot layer) */}
-            {layerKey === 'hot' && (
+            {/* 2. Spinning Pastel Mint Mini Fan (Hot) */}
+            {propMode === 'fan' && (
               <g transform="translate(60, 316)">
                 <rect x="18" y="40" width="10" height="34" rx="5" fill="#497D74" />
                 <circle
@@ -384,7 +422,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               </g>
             )}
 
-            {/* 3. Swinging Warm Brass Lantern (Night layer) */}
+            {/* 3. Swinging Warm Brass Lantern (Night) */}
             {isNightLantern && (
               <g transform="translate(60, 306)" className="animate-cavy-lantern">
                 <circle cx="24" cy="52" r="54" fill={`url(#${lanternGlowId})`} />
@@ -413,22 +451,22 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               />
             )}
 
-            {/* 5. Natural Blink / Happy Pet & Eating Smile Eyes at Calibrated (140,224) & (232,229) */}
+            {/* 5. Natural Blink / Happy Smile Eyes at calibrated (136,226) & (230,235) */}
             {!eyesCovered && !startled && (isPetted || isEating || isBlinking) && (
               <g>
-                <ellipse cx="140" cy="224" rx="13" ry="14" fill={coatMeta.eyelidHex} />
-                <ellipse cx="232" cy="229" rx="14" ry="15" fill={coatMeta.eyelidHex} />
+                <ellipse cx="136" cy="226" rx="14.5" ry="17" fill={coatMeta.eyelidHex} />
+                <ellipse cx="230" cy="235" rx="13" ry="15" fill={coatMeta.eyelidHex} />
                 {isPetted || isEating ? (
                   <>
                     <path
-                      d="M 129 226 Q 140 214 151 226"
+                      d="M 124 228 Q 136 216 148 228"
                       fill="none"
                       stroke="#2A1F1B"
                       strokeWidth="3.6"
                       strokeLinecap="round"
                     />
                     <path
-                      d="M 220 231 Q 232 218 244 231"
+                      d="M 218 237 Q 230 225 242 237"
                       fill="none"
                       stroke="#2A1F1B"
                       strokeWidth="3.6"
@@ -438,14 +476,14 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
                 ) : (
                   <>
                     <path
-                      d="M 130 225 Q 140 231 150 225"
+                      d="M 125 227 Q 136 233 147 227"
                       fill="none"
                       stroke="#2A1F1B"
                       strokeWidth="3"
                       strokeLinecap="round"
                     />
                     <path
-                      d="M 221 230 Q 232 236 243 230"
+                      d="M 219 236 Q 230 242 241 236"
                       fill="none"
                       stroke="#2A1F1B"
                       strokeWidth="3"
@@ -456,74 +494,74 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               </g>
             )}
 
-            {/* 6. Lightning-Flash Startled Eyes ONLY when thunderbolt flashes */}
+            {/* 6. Lightning-Flash Startled Eyes */}
             {startled && !eyesCovered && (
               <g>
-                <circle cx="140" cy="224" r="13.5" fill="#FFFFFF" stroke="#2A1F1B" strokeWidth="2.5" />
-                <circle cx="140" cy="224" r="6.5" fill="#2A1F1B" />
-                <circle cx="143" cy="221" r="2.4" fill="#FFFFFF" />
-                <circle cx="232" cy="229" r="14.5" fill="#FFFFFF" stroke="#2A1F1B" strokeWidth="2.5" />
-                <circle cx="232" cy="229" r="6.8" fill="#2A1F1B" />
-                <circle cx="235" cy="226" r="2.5" fill="#FFFFFF" />
+                <circle cx="136" cy="226" r="13.5" fill="#FFFFFF" stroke="#2A1F1B" strokeWidth="2.5" />
+                <circle cx="136" cy="226" r="6.5" fill="#2A1F1B" />
+                <circle cx="139" cy="223" r="2.4" fill="#FFFFFF" />
+                <circle cx="230" cy="235" r="13.5" fill="#FFFFFF" stroke="#2A1F1B" strokeWidth="2.5" />
+                <circle cx="230" cy="235" r="6.5" fill="#2A1F1B" />
+                <circle cx="233" cy="232" r="2.4" fill="#FFFFFF" />
               </g>
             )}
 
-            {/* 7. Fog Detective Glasses & Sunny Sunglasses strictly calibrated to (140,224) & (232,229) */}
+            {/* 7. Fog Glasses, Sunny Sunglasses, or Blizzard Ski Goggles */}
             {isFogGlasses && (
               <g>
                 <circle
-                  cx="140"
-                  cy="224"
+                  cx="136"
+                  cy="226"
                   r="20"
                   fill="rgba(235,246,255,0.16)"
                   stroke="#7A4F30"
                   strokeWidth="3.4"
                 />
                 <circle
-                  cx="232"
-                  cy="229"
-                  r="21"
+                  cx="230"
+                  cy="235"
+                  r="20.5"
                   fill="rgba(235,246,255,0.16)"
                   stroke="#7A4F30"
                   strokeWidth="3.4"
                 />
-                <path d="M 160 223 Q 185 215 211 226" stroke="#7A4F30" strokeWidth="3.2" fill="none" />
+                <path d="M 156 225 Q 183 217 209 229" stroke="#7A4F30" strokeWidth="3.2" fill="none" />
               </g>
             )}
 
             {isSunglasses && (
               <g>
                 <circle
-                  cx="140"
-                  cy="224"
+                  cx="136"
+                  cy="226"
                   r="20.5"
                   fill={`url(#${lensGradId})`}
                   stroke="#E3B35F"
                   strokeWidth="3.2"
                 />
                 <circle
-                  cx="232"
-                  cy="229"
-                  r="21.5"
+                  cx="230"
+                  cy="235"
+                  r="21"
                   fill={`url(#${lensGradId})`}
                   stroke="#E3B35F"
                   strokeWidth="3.2"
                 />
-                <path d="M 161 222 Q 186 214 210 224" stroke="#E3B35F" strokeWidth="3.2" fill="none" />
+                <path d="M 157 224 Q 183 216 209 227" stroke="#E3B35F" strokeWidth="3.2" fill="none" />
                 <line
-                  x1="130"
-                  y1="214"
-                  x2="144"
-                  y2="232"
+                  x1="126"
+                  y1="216"
+                  x2="140"
+                  y2="234"
                   stroke="rgba(255,255,255,0.34)"
                   strokeWidth="3.2"
                   strokeLinecap="round"
                 />
                 <line
-                  x1="222"
-                  y1="219"
-                  x2="236"
-                  y2="237"
+                  x1="220"
+                  y1="225"
+                  x2="234"
+                  y2="243"
                   stroke="rgba(255,255,255,0.34)"
                   strokeWidth="3.2"
                   strokeLinecap="round"
@@ -531,44 +569,93 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               </g>
             )}
 
-            {/* 8. AQI Protective Face Mask when air quality is poor (AQI >= 101) */}
+            {isBlizzardGoggles && (
+              <g>
+                <path
+                  d="M 110 220 Q 116 222 122 224 M 248 232 Q 272 232 292 224"
+                  stroke="rgba(52, 48, 56, 0.92)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <rect
+                  x="114"
+                  y="204"
+                  width="138"
+                  height="46"
+                  rx="21"
+                  fill="#3B3538"
+                  stroke="#262022"
+                  strokeWidth="2.5"
+                />
+                <path
+                  d="M 134 210 L 231 210 A 15 15 0 0 1 246 225 L 246 229 A 15 15 0 0 1 231 244 L 194 244 L 184 235 L 174 244 L 134 244 A 15 15 0 0 1 119 229 L 119 225 A 15 15 0 0 1 134 210 Z"
+                  fill={`url(#${skiLensGradId})`}
+                />
+                <line
+                  x1="138"
+                  y1="214"
+                  x2="156"
+                  y2="238"
+                  stroke="rgba(255, 250, 235, 0.56)"
+                  strokeWidth="4.2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="205"
+                  y1="215"
+                  x2="222"
+                  y2="239"
+                  stroke="rgba(255, 250, 235, 0.48)"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </g>
+            )}
+
+            {/* 8. Plush Pastel-Sky Storybook AQI Protective Mask */}
             {aqiNeedsMask && (
               <g>
-                {/* Soft pastel ear straps */}
+                {/* Soft cream elastic ear loops curving below cheek away from right eye */}
                 <path
-                  d="M 122 260 Q 112 222 126 196"
+                  d="M 134 265 Q 111 241 121 202"
                   fill="none"
-                  stroke="#BAE6FD"
-                  strokeWidth="2.8"
+                  stroke="rgba(248, 240, 228, 0.84)"
+                  strokeWidth="2.1"
                   strokeLinecap="round"
                 />
                 <path
-                  d="M 198 268 Q 252 246 266 204"
+                  d="M 186 270 Q 226 276 254 226"
                   fill="none"
-                  stroke="#BAE6FD"
-                  strokeWidth="2.8"
+                  stroke="rgba(248, 240, 228, 0.8)"
+                  strokeWidth="2.1"
                   strokeLinecap="round"
                 />
-                {/* Snug pleated mask over snout (158, 274) */}
+                {/* Soft warm ambient shadow under mask */}
                 <path
-                  d="M 120 258 Q 160 248 202 264 L 194 304 Q 156 314 124 298 Z"
-                  fill="#F8FAFC"
-                  stroke="#CBD5E1"
-                  strokeWidth="2.2"
+                  d="M 132 269 Q 132 260 141 258 Q 160 255 179 262 Q 188 265 186 274 L 181 298 Q 160 304 137 296 Z"
+                  fill="rgba(92, 62, 46, 0.2)"
+                />
+                {/* Rounded pleated pastel-sky cloth mask with sepia ink outline */}
+                <path
+                  d="M 133 268 Q 133 259 142 257 Q 161 254 179 261 Q 188 264 186 273 L 181 296 Q 160 302 137 294 Q 134 283 133 268 Z"
+                  fill={`url(#${maskGradId})`}
+                  stroke="#7C6456"
+                  strokeWidth="2.1"
                   strokeLinejoin="round"
                 />
                 <path
-                  d="M 128 273 Q 160 268 195 279 M 127 286 Q 158 282 192 292"
+                  d="M 139 274 Q 160 270 182 277 M 138 285 Q 159 281 180 287"
                   fill="none"
-                  stroke="#CBD5E1"
-                  strokeWidth="1.6"
+                  stroke="rgba(130, 178, 206, 0.78)"
+                  strokeWidth="1.5"
                   strokeLinecap="round"
                 />
-                {/* Tiny paw emblem */}
-                <circle cx="174" cy="285" r="3" fill="#FDA4AF" />
-                <circle cx="169" cy="279" r="1.4" fill="#FDA4AF" />
-                <circle cx="174" cy="278" r="1.4" fill="#FDA4AF" />
-                <circle cx="179" cy="280" r="1.4" fill="#FDA4AF" />
+                {/* Tiny coral heart badge */}
+                <path
+                  d="M 171 280 c -1.5 -2.6, -5.2 -2, -5.2 1.1 c 0 2.7, 5.2 5.6, 5.2 5.6 c 0 0, 5.2 -2.9, 5.2 -5.6 c 0 -3.1, -3.7 -3.7, -5.2 -1.1 z"
+                  fill="#F4808A"
+                />
               </g>
             )}
 
@@ -607,7 +694,7 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               </g>
             )}
 
-            {/* 10. Cold Breath Puffs & Snow Dusting (aligned to body/head contour) */}
+            {/* 10. Cold Breath Puffs & Delicate Snow Dust on Beret / Coat Back */}
             {outfit.hasFrostBreath && (
               <g className="animate-cavy-breath-puff" style={{ transformOrigin: '132px 292px' }}>
                 <circle cx="128" cy="292" r="6" fill="rgba(255,255,255,0.72)" />
@@ -616,12 +703,14 @@ export const GuineaPigMascot: React.FC<GuineaPigMascotProps> = ({
               </g>
             )}
 
-            {outfit.hasSnowDust && layerKey !== 'blizzard' && (
-              <g fill="#FFFFFF" opacity="0.9">
-                <circle cx="204" cy="144" r="4" />
-                <circle cx="256" cy="146" r="3.4" />
-                <circle cx="378" cy="158" r="4.5" />
-                <circle cx="422" cy="168" r="3.8" />
+            {(propMode === 'snow-dust' || propMode === 'blizzard') && (
+              <g fill="rgba(255, 255, 255, 0.9)">
+                <ellipse cx="204" cy="122" rx="11" ry="4.5" />
+                <ellipse cx="224" cy="117" rx="13" ry="5" />
+                <ellipse cx="244" cy="123" rx="9" ry="4" />
+                <ellipse cx="380" cy="158" rx="12" ry="4.5" />
+                <ellipse cx="400" cy="162" rx="14" ry="5" />
+                <ellipse cx="418" cy="168" rx="10" ry="4" />
               </g>
             )}
 

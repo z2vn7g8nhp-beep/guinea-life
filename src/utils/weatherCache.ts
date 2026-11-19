@@ -1,7 +1,7 @@
 import type { CityLocation, WeatherSnapshot } from '../types/weather';
-import { cityCoordKey } from '../services/weatherApi';
+import { cityCoordKey, isValidIanaTimeZone } from '../services/weatherApi';
 
-const CACHE_KEY = 'guinea_life_weather_cache_v1';
+const CACHE_KEY = 'guinea_life_weather_cache_v3';
 const FRESH_MS = 8 * 60_000;
 const STALE_MS = 60 * 60_000;
 const MAX_ENTRIES = 12;
@@ -64,8 +64,14 @@ export function getCachedWeather(
     memoryCache.delete(key);
     return null;
   }
+  const resolvedTimezone = isValidIanaTimeZone(city.timezone)
+    ? city.timezone
+    : isValidIanaTimeZone(entry.snapshot.city?.timezone)
+    ? entry.snapshot.city.timezone
+    : city.timezone;
+
   return {
-    snapshot: { ...entry.snapshot, city },
+    snapshot: { ...entry.snapshot, city: { ...city, timezone: resolvedTimezone } },
     isFresh: age <= FRESH_MS,
   };
 }

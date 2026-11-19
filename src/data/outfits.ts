@@ -74,25 +74,25 @@ export function resolveGuineaPigOutfit(
   switch (tierId) {
     case 'freezing':
       tierLabel = '极寒保暖级';
-      outfitTitle = '橄榄绿羽绒派克装';
-      description = '穿上暖绒翻领绗缝派克、条纹绒球毛线帽，爪边备好热可可抗寒！';
+      outfitTitle = '松绿冬日大衣';
+      description = '换上松针绿加厚呢大衣配浆果贝雷帽，搓搓小爪烤红薯暖身！';
       headwear = 'pom-beanie';
       eyewear = condition === 'blizzard' ? 'snow-goggles' : 'none';
       outerwear = 'parka';
       neckwear = 'wool-scarf';
       footwear = 'snow-boots';
-      handheldProp = 'hot-cocoa';
+      handheldProp = 'sweet-potato';
       animationMode = 'shiver';
       reactionQuotes = [
-        '呼——鼻子都要冻红啦，快喝一口棉花糖热可可！',
-        '咕噜咕噜~ 羽绒服穿得厚实，绒球毛线帽护住小耳朵！',
+        '呼——鼻子都要冻红啦，快啃一口刚出炉的烤红薯！',
+        '咕噜咕噜~ 加厚松绿呢大衣配格纹围巾，一点都不透风！',
         '零下啦！豚鼠建议今天窝在被窝里啃干草～',
       ];
       break;
 
     case 'cold':
       tierLabel = '冬日防风级';
-      outfitTitle = '英伦牛角扣毛呢大衣';
+      outfitTitle = '英伦毛呢大衣';
       description = '驼色毛呢大衣配格纹围巾与浆果红贝雷帽，面前捧着刚烤好的红薯。';
       headwear = windy ? 'earmuffs' : 'beret';
       outerwear = 'duffle-coat';
@@ -109,7 +109,7 @@ export function resolveGuineaPigOutfit(
 
     case 'cool':
       tierLabel = '春秋叠穿级';
-      outfitTitle = '松软麻花针织开衫装';
+      outfitTitle = '麻花针织开衫';
       description = '青苔绿软糯针织衫搭配报童帽，手边备好温热珍珠奶茶散步去。';
       headwear = 'newsboy';
       outerwear = 'knit-cardigan';
@@ -126,7 +126,7 @@ export function resolveGuineaPigOutfit(
 
     case 'mild':
       tierLabel = '春日舒适级';
-      outfitTitle = '经典背带牛仔生活装';
+      outfitTitle = '经典牛仔背带';
       description = '清爽复古牛仔背带裤搭配手边雏菊牧草，惬意晒太阳晃悠！';
       headwear = brightSun ? 'beret' : 'none';
       outerwear = 'denim-overalls';
@@ -143,8 +143,8 @@ export function resolveGuineaPigOutfit(
 
     case 'warm':
       tierLabel = '轻夏清爽级';
-      outfitTitle = '编织草帽晴空领巾装';
-      description = '系上晴空蓝亚麻小领巾配珊瑚丝带编织草帽，手边冰柠檬茶随时续杯。';
+      outfitTitle = '浅蓝丹宁背带';
+      description = '换上轻快浅蓝晴空牛仔背带裤，搭配雏菊鲜草享受惬意夏风。';
       headwear = 'straw-hat';
       eyewear = brightSun ? 'sunglasses' : 'none';
       outerwear = 'floral-shirt';
@@ -152,16 +152,16 @@ export function resolveGuineaPigOutfit(
       handheldProp = 'lemonade';
       animationMode = 'bounce';
       reactionQuotes = [
-        '戴上草帽就是这条街最靓的豚鼠小模特！',
-        '气温升高啦，来一口冰爽青柠特饮降降温！',
+        '浅蓝牛仔背带裤最配夏日的晴空啦，出门散步咯！',
+        '气温升高啦，记得多喝水、躲在树荫下乘凉！',
         '晴天记得涂防晒霜，不要被晒成焦糖色咯～',
       ];
       break;
 
     case 'hot':
       tierLabel = '酷暑清凉级';
-      outfitTitle = '冰凉颈圈 + 遮阳小风扇';
-      description = '戴上透心凉冰蓝降温颈圈与薄荷防晒空顶帽，小风扇呼呼送风！';
+      outfitTitle = '盛夏清凉小扇';
+      description = '轻装上阵开启薄荷迷你小风扇呼呼纳凉，酷暑天只管吹风发呆！';
       headwear = 'sun-visor';
       eyewear = brightSun ? 'sunglasses' : 'none';
       outerwear = 'cooling-tank';
@@ -170,7 +170,7 @@ export function resolveGuineaPigOutfit(
       handheldProp = 'mini-fan';
       animationMode = 'pant';
       reactionQuotes = [
-        '呼哈呼哈……太热啦，全靠脖子上这个冰冰圈续命！',
+        '呼哈呼哈……太热啦，全靠小风扇呼呼吹风续命！',
         '小风扇开到最大档！豚鼠今天只想吹空调吃果蔬～',
         '多喝水防中暑！本鼠的毛都要热蓬松啦！',
       ];
@@ -186,27 +186,27 @@ export function resolveGuineaPigOutfit(
     eyewear = 'none';
 
     if (condition === 'thunderstorm') {
-      outfitTitle = '雷暴琥珀连帽防风雨披';
-      description = '扣好暖琥珀防水连帽雨披，撑稳晴雨透明泡泡伞躲避雷阵雨！';
+      outfitTitle = '深海防风大衣';
+      description = '穿上深海防水大衣、撑稳晴雨透明泡泡伞躲避雷阵雨！';
       reactionQuotes = [
         '轰隆！刚刚那个闪电吓得本豚鼠耳朵抖了一下！',
         '暴雨雷电天尽量别出门，一定要撑好伞远离大树呀！',
-        '穿着防水雨披，里面还是干干爽爽的呢～',
+        '有防水大衣和泡泡伞护体，里面还是干干爽爽的呢～',
       ];
     } else if (condition === 'heavy-rain') {
-      outfitTitle = '暴雨防泼水连帽雨披';
-      description = '琥珀色防风防水雨披搭配透明泡泡伞，再大的雨滴也不怕淋湿！';
+      outfitTitle = '深海防风大衣';
+      description = '深海防泼水大衣搭配透明泡泡伞，再大的雨滴也不怕淋湿！';
       reactionQuotes = [
-        '雨势好大！幸好豚鼠穿了防泼水连帽雨披！',
+        '雨势好大！幸好豚鼠穿了深海防水大衣！',
         '听着哗啦啦的雨声，感觉特别治愈呢～',
-        '地上有水洼，走过的时候当心溅湿裤脚哦！',
+        '地上有水洼，走过的时候当心溅湿脚脚哦！',
       ];
     } else {
-      outfitTitle = '蜜黄连帽雨披 × 泡泡伞';
-      description = '穿上蜜糖黄连帽雨披、撑起透明泡泡伞漫步细雨中听雨声。';
+      outfitTitle = '蜜黄防雨大衣';
+      description = '换上蜜糖黄防雨大衣、撑起透明泡泡伞漫步细雨中听雨声。';
       reactionQuotes = [
         '细雨绵绵最适合听雨声发呆啦，透明伞看天空超浪漫！',
-        '出门记得带伞！豚鼠已经替你把连帽雨披扣好啦～',
+        '出门记得带伞！豚鼠已经替你备好透明泡泡伞啦～',
         '滴答滴答，雨点滑过伞面的声音真好听。',
       ];
     }
@@ -215,8 +215,8 @@ export function resolveGuineaPigOutfit(
       eyewear = 'snow-goggles';
       headwear = 'pom-beanie';
       outerwear = 'parka';
-      outfitTitle = '暴雪护目防风雪地装';
-      description = '戴上琥珀镀膜雪镜、条纹毛线帽与厚羽绒服，肩头接满蓬松飞雪！';
+      outfitTitle = '暴雪护目大衣';
+      description = '换上深蓝抗寒大衣搭配琥珀护目雪镜，肩头接满蓬松飞雪！';
       reactionQuotes = [
         '雪花往脸上扑来啦！还好有防风雪镜护住眼睛！',
         '暴雪天气路滑，出门一定要慢慢走小碎步哦～',
@@ -225,7 +225,7 @@ export function resolveGuineaPigOutfit(
       headwear = 'earmuffs';
       neckwear = neckwear === 'none' ? 'wool-scarf' : neckwear;
       footwear = 'snow-boots';
-      outfitTitle = `${outfitTitle} × 雪天踏雪模式`;
+      outfitTitle = `${outfitTitle} × 踏雪`;
       description = '雪花落满头顶和肩背，呼出的白气在冷空气中变成小云朵。';
       reactionQuotes = [
         '下雪啦！看我头顶接住了一片六角形雪花！',
@@ -235,7 +235,7 @@ export function resolveGuineaPigOutfit(
   } else if (condition === 'fog') {
     eyewear = 'round-glasses';
     handheldProp = isDay ? handheldProp : 'lantern';
-    outfitTitle = `${outfitTitle} × 雾天小侦探圆镜`;
+    outfitTitle = `${outfitTitle} × 圆镜`;
     description = '架上玳瑁小圆框眼镜，在薄雾缭绕的空气中稳步前行。';
     reactionQuotes = [
       '雾气蒙蒙的像仙境一样，不过能见度低要注意安全哦！',
@@ -246,8 +246,8 @@ export function resolveGuineaPigOutfit(
       headwear = 'nightcap';
       handheldProp = 'lantern';
       eyewear = 'none';
-      outfitTitle = '星夜睡帽提灯晚安装';
-      description = '夜色温柔降临，戴上绣星深蓝睡帽、提着暖光黄铜小灯笼陪你看星星。';
+      outfitTitle = '星夜暖灯晚安';
+      description = '夜色温柔降临，提着暖光黄铜小灯笼陪你漫步看星星。';
       reactionQuotes = [
         '夜晚的空气凉丝丝的，陪你提着小灯笼散步吧～',
         '数一数天上的星星，今天辛苦了，早点休息哦！',
@@ -380,16 +380,16 @@ export interface OutfitLockSpec {
 }
 
 export const OUTFIT_LOCK_OPTIONS: OutfitLockSpec[] = [
-  { id: 'freezing', label: '极寒羽绒派克', temperature: -6, condition: 'clear', windSpeed: 12, isDay: true },
-  { id: 'blizzard', label: '暴雪护目雪镜', temperature: -8, condition: 'blizzard', windSpeed: 32, isDay: true },
-  { id: 'cold', label: '冬日呢大衣', temperature: 5, condition: 'clear', windSpeed: 14, isDay: true },
-  { id: 'cool', label: '春秋针织开衫', temperature: 14, condition: 'clear', windSpeed: 10, isDay: true },
+  { id: 'freezing', label: '松绿冬日大衣', temperature: -6, condition: 'clear', windSpeed: 12, isDay: true },
+  { id: 'blizzard', label: '暴雪护目大衣', temperature: -8, condition: 'blizzard', windSpeed: 32, isDay: true },
+  { id: 'cold', label: '英伦毛呢大衣', temperature: 5, condition: 'clear', windSpeed: 14, isDay: true },
+  { id: 'cool', label: '麻花针织开衫', temperature: 14, condition: 'clear', windSpeed: 10, isDay: true },
   { id: 'mild', label: '经典牛仔背带', temperature: 21, condition: 'clear', windSpeed: 10, isDay: true },
-  { id: 'warm', label: '度假草帽冰柠', temperature: 27, condition: 'clear', windSpeed: 12, isDay: true },
-  { id: 'hot', label: '冰凉颈圈风扇', temperature: 35, condition: 'clear', windSpeed: 6, isDay: true },
-  { id: 'rain', label: '蜜黄连帽雨披', temperature: 16, condition: 'rain', windSpeed: 16, isDay: true },
-  { id: 'storm', label: '琥珀风暴雨衣', temperature: 19, condition: 'thunderstorm', windSpeed: 35, isDay: true },
-  { id: 'night', label: '星夜睡帽提灯', temperature: 19, condition: 'clear', windSpeed: 8, isDay: false },
+  { id: 'warm', label: '浅蓝丹宁背带', temperature: 27, condition: 'clear', windSpeed: 12, isDay: true },
+  { id: 'hot', label: '盛夏清凉小扇', temperature: 35, condition: 'clear', windSpeed: 6, isDay: true },
+  { id: 'rain', label: '蜜黄防雨大衣', temperature: 16, condition: 'rain', windSpeed: 16, isDay: true },
+  { id: 'storm', label: '深海防风大衣', temperature: 19, condition: 'thunderstorm', windSpeed: 35, isDay: true },
+  { id: 'night', label: '星夜暖灯晚安', temperature: 19, condition: 'clear', windSpeed: 8, isDay: false },
 ];
 
 export function getSeasonalSnack(

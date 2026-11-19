@@ -39,6 +39,16 @@ export function cityCoordKey(city: Pick<CityLocation, 'latitude' | 'longitude'>)
   return `${city.latitude.toFixed(2)},${city.longitude.toFixed(2)}`;
 }
 
+export function isValidIanaTimeZone(tz?: string): boolean {
+  if (!tz || tz === 'auto') return false;
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function formatLocalYmd(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -525,7 +535,7 @@ export async function fetchLiveWeather(
         'precipitation_sum',
       ].join(',')
     );
-    url.searchParams.set('timezone', city.timezone || 'auto');
+    url.searchParams.set('timezone', isValidIanaTimeZone(city.timezone) ? city.timezone! : 'auto');
     url.searchParams.set('forecast_days', '7');
 
     const [weatherRes, airQuality] = await Promise.all([
@@ -537,6 +547,7 @@ export async function fetchLiveWeather(
 
     const data = (await weatherRes.json()) as {
       timezone?: string;
+      utc_offset_seconds?: number;
       current: {
         time: string;
         temperature_2m: number;
@@ -572,9 +583,15 @@ export async function fetchLiveWeather(
       };
     };
 
+    const resolvedTimezone = isValidIanaTimeZone(city.timezone)
+      ? city.timezone
+      : isValidIanaTimeZone(data.timezone)
+      ? data.timezone
+      : undefined;
+
     const resolvedCity: CityLocation =
-      !city.timezone || city.timezone === 'auto'
-        ? { ...city, timezone: data.timezone || city.timezone }
+      resolvedTimezone && resolvedTimezone !== city.timezone
+        ? { ...city, timezone: resolvedTimezone }
         : city;
 
     const current = data.current;
@@ -641,6 +658,8 @@ export async function fetchLiveWeather(
       sunrise: sunrise.slice(11, 16) || '06:30',
       sunset: sunset.slice(11, 16) || '18:00',
       updatedAt: current.time.slice(11, 16) || '刚刚',
+      utcOffsetSeconds:
+        typeof data.utc_offset_seconds === 'number' ? data.utc_offset_seconds : undefined,
       hourly,
       daily,
       airQuality,

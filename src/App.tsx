@@ -39,6 +39,7 @@ import {
   fetchCitiesBriefWeather,
   fetchLiveWeather,
   formatLocalYmd,
+  isValidIanaTimeZone,
   reverseGeocodeCity,
 } from './services/weatherApi';
 import type {
@@ -173,8 +174,13 @@ function loadCompanionStats(): CompanionStats {
   return { firstVisitDate: today, feedCount: 0, petCount: 0 };
 }
 
-function formatCityLocalTime(city: CityLocation, fallbackTime: string, nowMs: number): string {
-  if (city.timezone && city.timezone !== 'auto') {
+function formatCityLocalTime(
+  city: CityLocation,
+  utcOffsetSeconds: number | undefined,
+  fallbackTime: string,
+  nowMs: number
+): string {
+  if (isValidIanaTimeZone(city.timezone)) {
     try {
       return new Intl.DateTimeFormat('en-GB', {
         timeZone: city.timezone,
@@ -185,6 +191,12 @@ function formatCityLocalTime(city: CityLocation, fallbackTime: string, nowMs: nu
     } catch {
       // fall through
     }
+  }
+  if (typeof utcOffsetSeconds === 'number' && Number.isFinite(utcOffsetSeconds)) {
+    const shifted = new Date(nowMs + utcOffsetSeconds * 1000);
+    const hh = String(shifted.getUTCHours()).padStart(2, '0');
+    const mm = String(shifted.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
   }
   const clean = fallbackTime.replace(/\s*\(.*\)$/, '').trim();
   return clean || '--:--';
@@ -280,15 +292,29 @@ export function App() {
 
   const applyLocatedCity = useCallback(
     (loc: CityLocation, source: 'gps' | 'ip', selectSlot: boolean) => {
+      let normalizedLoc = loc;
+      if (!isValidIanaTimeZone(normalizedLoc.timezone)) {
+        try {
+          const prevRaw = localStorage.getItem(LOCATED_CITY_STORAGE_KEY);
+          if (prevRaw) {
+            const prevLoc = JSON.parse(prevRaw) as CityLocation;
+            if (prevLoc?.name === loc.name && isValidIanaTimeZone(prevLoc.timezone)) {
+              normalizedLoc = { ...loc, timezone: prevLoc.timezone };
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
       try {
-        localStorage.setItem(LOCATED_CITY_STORAGE_KEY, JSON.stringify(loc));
+        localStorage.setItem(LOCATED_CITY_STORAGE_KEY, JSON.stringify(normalizedLoc));
       } catch {
         // ignore
       }
       const prevKey = locatedCityKeyRef.current;
-      setLocatedCityKey(loc.name);
+      setLocatedCityKey(normalizedLoc.name);
       setLocationSource(source);
-      setPinnedCities((prev) => upsertPrimaryLocatedCity(prev, loc, prevKey));
+      setPinnedCities((prev) => upsertPrimaryLocatedCity(prev, normalizedLoc, prevKey));
       if (selectSlot) {
         setSim(null);
         setActiveCityIndex(0);
@@ -360,8 +386,18 @@ export function App() {
   }, [companionStats]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
-    return () => window.clearInterval(id);
+    const syncClock = () => setNowMs(Date.now());
+    const id = window.setInterval(syncClock, 10_000);
+    const onVisibility = () => {
+      if (!document.hidden) syncClock();
+    };
+    window.addEventListener('focus', syncClock);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('focus', syncClock);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   useEffect(() => {
@@ -430,21 +466,32 @@ export function App() {
       setLiveWeather(snapshot);
       setCachedWeather(snapshot.city, snapshot);
 
-      // Persist resolved IANA timezone onto stored city if it previously used 'auto'
-      if (
-        snapshot.city.timezone &&
-        snapshot.city.timezone !== 'auto' &&
-        (!city.timezone || city.timezone === 'auto')
-      ) {
+      // Persist resolved IANA timezone onto stored city & located cache if previously missing/'auto'
+      const validTz = snapshot.city.timezone;
+      if (isValidIanaTimeZone(validTz) && !isValidIanaTimeZone(city.timezone)) {
         setPinnedCities((prev) =>
           prev.map((c) =>
             c.name === city.name &&
             Math.abs(c.latitude - city.latitude) < 0.05 &&
             Math.abs(c.longitude - city.longitude) < 0.05
-              ? { ...c, timezone: snapshot.city.timezone }
+              ? { ...c, timezone: validTz }
               : c
           )
         );
+        try {
+          const rawLoc = localStorage.getItem(LOCATED_CITY_STORAGE_KEY);
+          if (rawLoc) {
+            const parsedLoc = JSON.parse(rawLoc) as CityLocation;
+            if (parsedLoc?.name === city.name) {
+              localStorage.setItem(
+                LOCATED_CITY_STORAGE_KEY,
+                JSON.stringify({ ...parsedLoc, timezone: validTz })
+              );
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
     } catch {
       // Aborted by newer selection; ignore silently
@@ -847,6 +894,7 @@ export function App() {
 
   const localTimeStr = formatCityLocalTime(
     effectiveWeather.city,
+    effectiveWeather.utcOffsetSeconds,
     effectiveWeather.updatedAt,
     nowMs
   );
@@ -886,18 +934,34 @@ export function App() {
             </div>
           )}
 
-          {/* Floating Top Bar */}
-          <header className="relative flex items-start justify-between gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="打开菜单"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-white/95 drop-shadow transition hover:bg-white/12 hover:text-white"
-            >
-              <Menu className="h-5.5 w-5.5" strokeWidth={1.8} />
-            </button>
+          {/* Floating Top Bar — Symmetrical 2-left / center / 2-right layout */}
+          <header className="relative grid grid-cols-[1fr_auto_1fr] items-start gap-2 pt-1">
+            <div className="flex items-center justify-start gap-0.5">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="打开菜单"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-white/95 drop-shadow transition hover:bg-white/12 hover:text-white"
+              >
+                <Menu className="h-5.5 w-5.5" strokeWidth={1.8} />
+              </button>
 
-            <div className="flex flex-col items-center text-center">
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                disabled={locating}
+                aria-label="定位到当前城市"
+                title="定位到当前城市"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-white/92 drop-shadow transition hover:bg-white/12 hover:text-white disabled:opacity-50"
+              >
+                <LocateFixed
+                  className={`h-5 w-5 ${locating ? 'animate-spin text-amber-200' : ''}`}
+                  strokeWidth={1.8}
+                />
+              </button>
+            </div>
+
+            <div className="flex min-w-0 flex-col items-center text-center">
               <button
                 type="button"
                 onClick={() => setCityModalOpen(true)}
@@ -952,21 +1016,7 @@ export function App() {
               )}
             </div>
 
-            <div className="flex items-center">
-              <button
-                type="button"
-                onClick={handleLocateMe}
-                disabled={locating}
-                aria-label="定位到当前城市"
-                title="定位到当前城市"
-                className="flex h-10 w-10 items-center justify-center rounded-full text-white/92 drop-shadow transition hover:bg-white/12 hover:text-white disabled:opacity-50"
-              >
-                <LocateFixed
-                  className={`h-5 w-5 ${locating ? 'animate-spin text-amber-200' : ''}`}
-                  strokeWidth={1.8}
-                />
-              </button>
-
+            <div className="flex items-center justify-end gap-0.5">
               <button
                 type="button"
                 onClick={handleToggleSound}

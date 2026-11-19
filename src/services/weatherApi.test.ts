@@ -7,6 +7,7 @@ import {
   classifyAirQuality,
   deriveTimeOfDay,
   formatLocalYmd,
+  isValidIanaTimeZone,
   mapWmoCodeToCondition,
   normalizeChineseCityName,
 } from './weatherApi.ts';
@@ -62,4 +63,13 @@ test('normalizeChineseCityName and cityCoordKey behave deterministically', () =>
   assert.equal(normalizeChineseCityName('津市'), '津市');
   assert.equal(normalizeChineseCityName('London'), 'London');
   assert.equal(cityCoordKey(PRESET_CITIES[0]), '31.23,121.47');
+});
+
+test('isValidIanaTimeZone validates IANA identifiers and rejects auto/invalid', () => {
+  assert.equal(isValidIanaTimeZone('Asia/Shanghai'), true);
+  assert.equal(isValidIanaTimeZone('Europe/London'), true);
+  assert.equal(isValidIanaTimeZone('auto'), false);
+  assert.equal(isValidIanaTimeZone(''), false);
+  assert.equal(isValidIanaTimeZone(undefined), false);
+  assert.equal(isValidIanaTimeZone('Invalid/Place_XYZ'), false);
 });

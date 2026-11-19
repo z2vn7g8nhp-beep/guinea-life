@@ -1,7 +1,6 @@
 import type { GuineaPigOutfit, MascotCoatId, TimeOfDay, WeatherCondition, WeatherSnapshot } from '../types/weather';
 import { resolveMascotVisual } from '../components/mascot/GuineaPigMascot';
 import { getRecoloredSpriteUrl } from './mascotCoat';
-import { getOutfitLayerUrl } from './mascotOutfitPainter';
 import { formatTemp, type TempUnit } from './tempUnit';
 
 function resolveSkyKey(condition: WeatherCondition, timeOfDay: TimeOfDay): string {
@@ -104,10 +103,16 @@ export async function generateWeatherPostcard(params: {
   const cardH = 620;
 
   // Draw perched guinea pig resting right on top of the card
-  const { spriteKey, layerKey } = resolveMascotVisual(outfit, weather.condition);
+  const { spriteKey, garmentVariant } = resolveMascotVisual(outfit, weather.condition);
   const rawSpriteUrl = `${baseUrl}assets/mascot/${spriteKey}.webp`;
   const baseSpriteUrl = `${baseUrl}assets/mascot/base.webp`;
-  const spriteUrl = await getRecoloredSpriteUrl(spriteKey, rawSpriteUrl, baseSpriteUrl, coatId);
+  const spriteUrl = await getRecoloredSpriteUrl(
+    spriteKey,
+    rawSpriteUrl,
+    baseSpriteUrl,
+    coatId,
+    garmentVariant
+  );
   const spriteImg = await loadImg(spriteUrl);
 
   const mascotW = 660;
@@ -122,30 +127,39 @@ export async function generateWeatherPostcard(params: {
   ctx.drawImage(spriteImg, mascotX, mascotY, mascotW, mascotH);
   ctx.restore();
 
-  if (layerKey) {
-    const ovUrl = await getOutfitLayerUrl(layerKey, baseSpriteUrl);
-    if (ovUrl) {
-      const ovImg = await loadImg(ovUrl);
-      ctx.drawImage(ovImg, mascotX, mascotY, mascotW, mascotH);
-    }
-  }
-
-  // Draw umbrella / lantern / mask details cleanly if active
+  // Draw refined storybook AQI mask details if active
   if (aqiNeedsMask) {
     const sx = mascotX;
     const sy = mascotY;
     const k = mascotW / 560;
     ctx.save();
+    ctx.strokeStyle = 'rgba(248, 240, 228, 0.84)';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(sx + 120 * k, sy + 258 * k);
-    ctx.quadraticCurveTo(sx + 160 * k, sy + 248 * k, sx + 202 * k, sy + 264 * k);
-    ctx.lineTo(sx + 194 * k, sy + 304 * k);
-    ctx.quadraticCurveTo(sx + 156 * k, sy + 314 * k, sx + 124 * k, sy + 298 * k);
+    ctx.moveTo(sx + 134 * k, sy + 265 * k);
+    ctx.quadraticCurveTo(sx + 111 * k, sy + 241 * k, sx + 121 * k, sy + 202 * k);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx + 186 * k, sy + 270 * k);
+    ctx.quadraticCurveTo(sx + 226 * k, sy + 276 * k, sx + 254 * k, sy + 226 * k);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(sx + 133 * k, sy + 268 * k);
+    ctx.quadraticCurveTo(sx + 133 * k, sy + 259 * k, sx + 142 * k, sy + 257 * k);
+    ctx.quadraticCurveTo(sx + 161 * k, sy + 254 * k, sx + 179 * k, sy + 261 * k);
+    ctx.quadraticCurveTo(sx + 188 * k, sy + 264 * k, sx + 186 * k, sy + 273 * k);
+    ctx.lineTo(sx + 181 * k, sy + 296 * k);
+    ctx.quadraticCurveTo(sx + 160 * k, sy + 302 * k, sx + 137 * k, sy + 294 * k);
     ctx.closePath();
-    ctx.fillStyle = '#F8FAFC';
+    const maskGrad = ctx.createLinearGradient(sx + 133 * k, sy + 255 * k, sx + 186 * k, sy + 300 * k);
+    maskGrad.addColorStop(0, '#E6F5FC');
+    maskGrad.addColorStop(1, '#C7E6F4');
+    ctx.fillStyle = maskGrad;
     ctx.fill();
     ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#CBD5E1';
+    ctx.strokeStyle = '#7C6456';
     ctx.stroke();
     ctx.restore();
   }
