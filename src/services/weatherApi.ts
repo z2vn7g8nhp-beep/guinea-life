@@ -90,6 +90,152 @@ function formatHourLabel(iso: string, index: number): string {
   return match ? match[1] : iso;
 }
 
+export function normalizeChineseCityName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (trimmed.endsWith('市') && trimmed.length > 2) {
+    return trimmed.slice(0, -1);
+  }
+  return trimmed;
+}
+
+export async function reverseGeocodeCity(
+  latitude: number,
+  longitude: number
+): Promise<CityLocation> {
+  const fallback: CityLocation = {
+    name: '当前位置',
+    region: 'GPS 定位',
+    latitude,
+    longitude,
+    timezone: 'auto',
+  };
+
+  try {
+    const url = new URL('https://api-bdc.io/data/reverse-geocode-client');
+    url.searchParams.set('latitude', String(latitude));
+    url.searchParams.set('longitude', String(longitude));
+    url.searchParams.set('localityLanguage', 'zh');
+
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(4500) });
+    if (!res.ok) return fallback;
+    const data = (await res.json()) as {
+      city?: string;
+      locality?: string;
+      principalSubdivision?: string;
+      countryName?: string;
+    };
+
+    const rawCity = data.city || data.locality || data.principalSubdivision || '';
+    const cityName = normalizeChineseCityName(rawCity);
+    if (!cityName) return fallback;
+
+    const rawSub = data.principalSubdivision?.trim();
+    const country =
+      data.countryName === '中华人民共和国' ? '中国' : data.countryName?.trim();
+
+    return {
+      name: cityName,
+      region: rawSub && normalizeChineseCityName(rawSub) !== cityName ? rawSub : data.locality?.trim(),
+      country,
+      latitude,
+      longitude,
+      timezone: 'auto',
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export async function detectLocationByIp(): Promise<CityLocation | null> {
+  const tryIpWhoIs = async (): Promise<{
+    lat: number;
+    lon: number;
+    city?: string;
+    timezone?: string;
+  } | null> => {
+    try {
+      const res = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) return null;
+      const d = (await res.json()) as {
+        success?: boolean;
+        latitude?: number;
+        longitude?: number;
+        city?: string;
+        timezone?: { id?: string };
+      };
+      if (d.success === false || typeof d.latitude !== 'number' || typeof d.longitude !== 'number') {
+        return null;
+      }
+      return {
+        lat: d.latitude,
+        lon: d.longitude,
+        city: d.city,
+        timezone: d.timezone?.id,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const tryGeoJs = async (): Promise<{
+    lat: number;
+    lon: number;
+    city?: string;
+    timezone?: string;
+  } | null> => {
+    try {
+      const res = await fetch('https://get.geojs.io/v1/ip/geo.json', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!res.ok) return null;
+      const d = (await res.json()) as {
+        latitude?: string | number;
+        longitude?: string | number;
+        city?: string;
+        timezone?: string;
+      };
+      const lat = Number(d.latitude);
+      const lon = Number(d.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      return { lat, lon, city: d.city, timezone: d.timezone };
+    } catch {
+      return null;
+    }
+  };
+
+  const ipPos = (await tryIpWhoIs()) ?? (await tryGeoJs());
+  if (!ipPos) return null;
+
+  const resolved = await reverseGeocodeCity(ipPos.lat, ipPos.lon);
+  if (resolved.name !== '当前位置') {
+    return {
+      ...resolved,
+      timezone: ipPos.timezone || resolved.timezone,
+    };
+  }
+
+  if (ipPos.city) {
+    const matches = await searchCities(ipPos.city);
+    if (matches[0]) {
+      return {
+        ...matches[0],
+        latitude: ipPos.lat,
+        longitude: ipPos.lon,
+        timezone: ipPos.timezone || matches[0].timezone,
+      };
+    }
+    return {
+      name: normalizeChineseCityName(ipPos.city) || ipPos.city,
+      latitude: ipPos.lat,
+      longitude: ipPos.lon,
+      timezone: ipPos.timezone || 'auto',
+    };
+  }
+
+  return null;
+}
+
 export async function searchCities(query: string): Promise<CityLocation[]> {
   const trimmed = query.trim();
   if (!trimmed) return PRESET_CITIES;

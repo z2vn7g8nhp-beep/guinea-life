@@ -5,6 +5,7 @@ import {
   buildFallbackWeather,
   deriveTimeOfDay,
   mapWmoCodeToCondition,
+  normalizeChineseCityName,
 } from './weatherApi.ts';
 
 test('mapWmoCodeToCondition maps WMO codes and high-wind overrides', () => {
@@ -34,4 +35,11 @@ test('buildFallbackWeather generates complete 12-hour and 7-day schedules', () =
   assert.equal(weather.hourly.length, 12);
   assert.equal(weather.daily.length, 7);
   assert.equal(weather.isOfflineFallback, true);
+});
+
+test('normalizeChineseCityName strips city suffix when longer than 2 chars', () => {
+  assert.equal(normalizeChineseCityName('郑州市'), '郑州');
+  assert.equal(normalizeChineseCityName('上海市 '), '上海');
+  assert.equal(normalizeChineseCityName('津市'), '津市');
+  assert.equal(normalizeChineseCityName('London'), 'London');
 });

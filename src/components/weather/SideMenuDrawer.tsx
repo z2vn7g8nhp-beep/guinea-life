@@ -57,36 +57,36 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
     >
       {/* Backdrop */}
       <div
-        className="animate-ui-fade fixed inset-0 bg-black/55 backdrop-blur-xs"
+        className="animate-ui-fade fixed inset-0 bg-black/60 backdrop-blur-xs"
         onClick={onClose}
       />
 
       {/* Slide-over drawer */}
-      <aside className="animate-ui-drawer relative z-10 flex h-full w-[290px] max-w-[85vw] flex-col border-r border-white/12 bg-slate-950/90 text-white shadow-2xl backdrop-blur-2xl sm:w-[320px]">
+      <aside className="animate-ui-drawer relative z-10 flex h-full w-[300px] max-w-[85vw] flex-col border-r border-white/14 bg-slate-950/92 text-white shadow-2xl backdrop-blur-2xl sm:w-[330px]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-white/12 px-5 py-4">
           <div>
-            <div className="text-base font-medium tracking-wide text-white">豚鼠生活馆</div>
-            <div className="text-[11px] font-light text-white/55">GuineaLife · 真实气象</div>
+            <div className="text-[17px] font-medium tracking-wide text-white">豚鼠生活馆</div>
+            <div className="text-[13px] font-normal text-white/60">GuineaLife · 真实气象</div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="关闭菜单"
-            className="rounded-full p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="rounded-full p-2 text-white/75 transition hover:bg-white/10 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
           {/* Pinned Cities */}
           <div>
             <div className="mb-2.5 flex items-center justify-between px-1">
-              <span className="text-[11px] font-medium tracking-wider text-white/55 uppercase">
+              <span className="text-[13px] font-medium text-white/65">
                 关注城市
               </span>
-              <span className="text-[11px] text-white/45 tabular-nums">{pinnedCities.length} 个</span>
+              <span className="text-[13px] text-white/55 tabular-nums">{pinnedCities.length} 个</span>
             </div>
 
             <div className="space-y-1">
@@ -98,7 +98,7 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                     className={`group flex items-center justify-between rounded-xl px-3 py-2.5 transition ${
                       isActive
                         ? 'bg-white/14 text-white'
-                        : 'text-white/75 hover:bg-white/8 hover:text-white'
+                        : 'text-white/80 hover:bg-white/8 hover:text-white'
                     }`}
                   >
                     <button
@@ -111,14 +111,14 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                     >
                       <MapPin
                         className={`h-4 w-4 shrink-0 ${
-                          isActive ? 'text-amber-300' : 'text-white/45'
+                          isActive ? 'text-amber-300' : 'text-white/50'
                         }`}
-                        strokeWidth={1.7}
+                        strokeWidth={1.8}
                       />
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-normal">{city.name}</div>
+                        <div className="truncate text-[15px] font-normal">{city.name}</div>
                         {(city.region || city.country) && (
-                          <div className="truncate text-[11px] font-light text-white/50">
+                          <div className="truncate text-[12px] font-normal text-white/55">
                             {[city.region, city.country].filter(Boolean).join(' · ')}
                           </div>
                         )}
@@ -130,9 +130,9 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                         type="button"
                         onClick={() => onRemoveCity(idx)}
                         aria-label={`移除 ${city.name}`}
-                        className="ml-2 rounded-lg p-1 text-white/40 opacity-75 transition hover:bg-white/10 hover:text-rose-300 group-hover:opacity-100"
+                        className="ml-2 rounded-lg p-1.5 text-white/45 opacity-80 transition hover:bg-white/10 hover:text-rose-300 group-hover:opacity-100"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
@@ -147,9 +147,9 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                   onClose();
                   onOpenCityPicker();
                 }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-normal text-white transition hover:bg-white/15"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2.5 text-[13px] font-normal text-white transition hover:bg-white/15"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-4 w-4" />
                 添加城市
               </button>
               <button
@@ -159,30 +159,30 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                   onLocateMe();
                   onClose();
                 }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-normal text-white transition hover:bg-white/15 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2.5 text-[13px] font-normal text-white transition hover:bg-white/15 disabled:opacity-50"
               >
-                <LocateFixed className={`h-3.5 w-3.5 ${locating ? 'animate-spin' : ''}`} />
+                <LocateFixed className={`h-4 w-4 ${locating ? 'animate-spin' : ''}`} />
                 当前定位
               </button>
             </div>
           </div>
 
           {/* Preferences */}
-          <div className="border-t border-white/10 pt-4 space-y-3">
-            <div className="px-1 text-[11px] font-medium tracking-wider text-white/55 uppercase">
+          <div className="space-y-3 border-t border-white/12 pt-4">
+            <div className="px-1 text-[13px] font-medium text-white/65">
               显示与声音
             </div>
 
-            <div className="flex items-center justify-between rounded-xl bg-white/6 px-3.5 py-2.5">
-              <span className="text-sm font-light text-white/85">温度单位</span>
-              <div className="inline-flex rounded-lg border border-white/12 bg-black/35 p-0.5">
+            <div className="flex items-center justify-between rounded-xl bg-white/8 px-3.5 py-2.5">
+              <span className="text-[14px] font-normal text-white/90">温度单位</span>
+              <div className="inline-flex rounded-lg border border-white/14 bg-black/40 p-0.5">
                 {(['C', 'F'] as const).map((u) => (
                   <button
                     key={u}
                     type="button"
                     onClick={() => onToggleUnit(u)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                      unit === u ? 'bg-white text-slate-950' : 'text-white/70 hover:text-white'
+                    className={`rounded-md px-3 py-1 text-[13px] font-medium transition ${
+                      unit === u ? 'bg-white text-slate-950' : 'text-white/75 hover:text-white'
                     }`}
                   >
                     °{u}
@@ -194,18 +194,18 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
             <button
               type="button"
               onClick={onToggleSound}
-              className="flex w-full items-center justify-between rounded-xl bg-white/6 px-3.5 py-2.5 text-left transition hover:bg-white/10"
+              className="flex w-full items-center justify-between rounded-xl bg-white/8 px-3.5 py-3 text-left transition hover:bg-white/12"
             >
-              <span className="inline-flex items-center gap-2 text-sm font-light text-white/85">
+              <span className="inline-flex items-center gap-2 text-[14px] font-normal text-white/90">
                 {soundEnabled ? (
                   <Volume2 className="h-4 w-4 text-amber-300" />
                 ) : (
-                  <VolumeX className="h-4 w-4 text-white/55" />
+                  <VolumeX className="h-4 w-4 text-white/60" />
                 )}
                 环境天气声景
               </span>
               <span
-                className={`text-xs ${soundEnabled ? 'text-amber-200' : 'text-white/50'}`}
+                className={`text-[13px] ${soundEnabled ? 'text-amber-200' : 'text-white/55'}`}
               >
                 {soundEnabled ? '开启' : '关闭'}
               </span>
@@ -213,8 +213,8 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
           </div>
 
           {/* Quick Guinea Pig Wardrobe & Weather Lab */}
-          <div className="border-t border-white/10 pt-4 space-y-2">
-            <div className="px-1 text-[11px] font-medium tracking-wider text-white/55 uppercase">
+          <div className="space-y-2 border-t border-white/12 pt-4">
+            <div className="px-1 text-[13px] font-medium text-white/65">
               豚鼠与气象实验
             </div>
 
@@ -224,7 +224,7 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                 onClose();
                 onOpenSheet('wardrobe');
               }}
-              className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/6 px-3.5 py-2.5 text-sm font-light text-white transition hover:bg-white/12"
+              className="flex w-full items-center gap-2.5 rounded-xl border border-white/12 bg-white/8 px-3.5 py-3 text-[14px] font-normal text-white transition hover:bg-white/14"
             >
               <Shirt className="h-4 w-4 text-amber-200" />
               豚鼠衣橱试穿
@@ -236,7 +236,7 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                 onClose();
                 onOpenSheet('simulator');
               }}
-              className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/6 px-3.5 py-2.5 text-sm font-light text-white transition hover:bg-white/12"
+              className="flex w-full items-center gap-2.5 rounded-xl border border-white/12 bg-white/8 px-3.5 py-3 text-[14px] font-normal text-white transition hover:bg-white/14"
             >
               <SlidersHorizontal className="h-4 w-4 text-sky-200" />
               天气特效模拟

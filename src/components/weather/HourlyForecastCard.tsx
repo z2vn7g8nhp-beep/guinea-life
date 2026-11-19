@@ -17,10 +17,10 @@ export const HourlyForecastCard: React.FC<HourlyForecastCardProps> = ({ hourly, 
   const maxT = Math.max(...temps);
   const span = Math.max(1, maxT - minT);
 
-  const svgWidth = Math.max(540, hourly.length * 52);
-  const svgHeight = 52;
-  const padX = 24;
-  const padY = 10;
+  const svgWidth = Math.max(580, hourly.length * 56);
+  const svgHeight = 58;
+  const padX = 26;
+  const padY = 12;
 
   const points = temps.map((t, i) => {
     const x = padX + (i / Math.max(1, temps.length - 1)) * (svgWidth - padX * 2);
@@ -40,53 +40,53 @@ export const HourlyForecastCard: React.FC<HourlyForecastCardProps> = ({ hourly, 
   const areaGradId = `hourlyArea-${uid}`;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-black/42 p-4 shadow-lg backdrop-blur-md">
-      <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2.5">
-        <h2 className="text-xs font-medium tracking-wider text-white/80 uppercase">
+    <section className="overflow-hidden rounded-2xl border border-white/14 bg-slate-950/50 p-4 shadow-lg backdrop-blur-xl">
+      <div className="mb-3 flex items-center justify-between border-b border-white/12 pb-2.5">
+        <h2 className="text-[14px] font-medium tracking-wide text-white/92">
           逐小时预报
         </h2>
-        <span className="text-xs font-light text-white/60 tabular-nums">
+        <span className="text-[13px] font-normal text-white/75 tabular-nums">
           {minT}° ~ {maxT}°{unit}
         </span>
       </div>
 
-      <div className="no-scrollbar overflow-x-auto pb-1">
-        <div className="min-w-[540px]">
+      <div className="no-scrollbar touch-pan-x overflow-x-auto overscroll-x-contain pb-1">
+        <div className="min-w-[580px]">
           <div className="grid grid-cols-12 gap-1 text-center">
             {hourly.map((h, idx) => (
               <div key={h.time} className="flex flex-col items-center gap-1.5 py-0.5">
-                <span className="text-[11px] font-light text-white/75 tabular-nums">
+                <span className="text-[13px] font-normal text-white/85 tabular-nums">
                   {h.hourLabel}
                 </span>
-                <WeatherConditionIcon condition={h.condition} isDay={h.isDay} className="h-4 w-4" />
-                <span className="h-3.5 text-[10px] font-light text-sky-200/80 tabular-nums">
+                <WeatherConditionIcon condition={h.condition} isDay={h.isDay} className="h-5 w-5" />
+                <span className="h-4 text-[12px] font-normal text-sky-200/88 tabular-nums">
                   {h.precipitationProb >= 15 ? `${h.precipitationProb}%` : ''}
                 </span>
-                <span className="text-sm font-normal text-white tabular-nums">{temps[idx]}°</span>
+                <span className="text-[16px] font-medium text-white tabular-nums">{temps[idx]}°</span>
               </div>
             ))}
           </div>
 
-          <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="mt-1 h-11 w-full overflow-visible">
+          <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="mt-1 h-12 w-full">
             <defs>
               <linearGradient id={lineGradId} x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(253, 224, 71, 0.9)" />
-                <stop offset="50%" stopColor="rgba(125, 211, 252, 0.9)" />
-                <stop offset="100%" stopColor="rgba(196, 181, 253, 0.85)" />
+                <stop offset="0%" stopColor="rgba(253, 224, 71, 0.92)" />
+                <stop offset="50%" stopColor="rgba(125, 211, 252, 0.92)" />
+                <stop offset="100%" stopColor="rgba(196, 181, 253, 0.88)" />
               </linearGradient>
               <linearGradient id={areaGradId} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(125, 211, 252, 0.22)" />
+                <stop offset="0%" stopColor="rgba(125, 211, 252, 0.24)" />
                 <stop offset="100%" stopColor="rgba(125, 211, 252, 0)" />
               </linearGradient>
             </defs>
             <path d={areaD} fill={`url(#${areaGradId})`} />
-            <path d={pathD} fill="none" stroke={`url(#${lineGradId})`} strokeWidth="2" strokeLinecap="round" />
+            <path d={pathD} fill="none" stroke={`url(#${lineGradId})`} strokeWidth="2.2" strokeLinecap="round" />
             {points.map((pt, idx) => (
               <circle
                 key={hourly[idx].time}
                 cx={pt.x}
                 cy={pt.y}
-                r={idx === 0 ? 3.5 : 2.3}
+                r={idx === 0 ? 4 : 2.6}
                 fill={idx === 0 ? '#fde047' : '#ffffff'}
               />
             ))}

@@ -22,9 +22,9 @@ export const DailyForecastCard: React.FC<DailyForecastCardProps> = ({ daily, uni
   const totalSpan = Math.max(1, globalMax - globalMin);
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-black/42 p-4 shadow-lg backdrop-blur-md">
-      <div className="mb-1 border-b border-white/10 pb-2.5">
-        <h2 className="text-xs font-medium tracking-wider text-white/80 uppercase">
+    <section className="overflow-hidden rounded-2xl border border-white/14 bg-slate-950/50 p-4 shadow-lg backdrop-blur-xl">
+      <div className="mb-1 border-b border-white/12 pb-2.5">
+        <h2 className="text-[14px] font-medium tracking-wide text-white/92">
           7日天气预报
         </h2>
       </div>
@@ -37,25 +37,25 @@ export const DailyForecastCard: React.FC<DailyForecastCardProps> = ({ daily, uni
           return (
             <div
               key={day.date}
-              className="grid grid-cols-[48px_28px_34px_1fr_34px] items-center gap-2 py-2.5 text-sm font-light"
+              className="grid grid-cols-[52px_28px_38px_1fr_36px] items-center gap-2 py-3 text-[15px] font-normal"
             >
-              <span className="text-white/90">{day.dayLabel}</span>
+              <span className="text-white/95">{day.dayLabel}</span>
 
               <div className="flex items-center justify-center">
-                <WeatherConditionIcon condition={day.condition} isDay className="h-4 w-4" />
+                <WeatherConditionIcon condition={day.condition} isDay className="h-5 w-5" />
               </div>
 
-              <span className="text-right text-[11px] text-sky-200/80 tabular-nums">
+              <span className="text-right text-[12px] text-sky-200/88 tabular-nums">
                 {day.precipitationProb >= 15 ? `${day.precipitationProb}%` : ''}
               </span>
 
-              <div className="flex items-center gap-2">
-                <span className="w-7 text-right text-xs text-white/60 tabular-nums">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 text-right text-[14px] text-white/70 tabular-nums">
                   {day.minV}°
                 </span>
-                <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/15">
+                <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/18">
                   <div
-                    className="absolute inset-y-0 rounded-full bg-gradient-to-r from-sky-300/90 via-amber-200/90 to-orange-300/90"
+                    className="absolute inset-y-0 rounded-full bg-gradient-to-r from-sky-300 via-amber-200 to-orange-300"
                     style={{
                       left: `${Math.min(88, leftPct)}%`,
                       width: `${Math.min(100 - leftPct, widthPct)}%`,
@@ -64,7 +64,9 @@ export const DailyForecastCard: React.FC<DailyForecastCardProps> = ({ daily, uni
                 </div>
               </div>
 
-              <span className="text-right font-normal text-white tabular-nums">{day.maxV}°</span>
+              <span className="text-right text-[15px] font-medium text-white tabular-nums">
+                {day.maxV}°
+              </span>
             </div>
           );
         })}
