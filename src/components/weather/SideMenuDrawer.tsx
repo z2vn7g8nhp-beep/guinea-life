@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
+  ChevronDown,
+  ChevronUp,
   LocateFixed,
   MapPin,
   Plus,
@@ -10,21 +12,29 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import type { CityLocation } from '../../types/weather';
-import type { TempUnit } from '../../utils/tempUnit';
+import { cityCoordKey } from '../../services/weatherApi';
+import type { CityBriefWeather, CityLocation } from '../../types/weather';
+import { formatTemp, type TempUnit } from '../../utils/tempUnit';
+import { WeatherConditionIcon } from './WeatherConditionIcon';
 
 interface SideMenuDrawerProps {
   open: boolean;
   pinnedCities: CityLocation[];
   activeCityIndex: number;
+  briefWeatherMap: Record<string, CityBriefWeather>;
+  locatedCityKey: string | null;
+  locationSource: 'gps' | 'ip' | null;
+  autoLocate: boolean;
   unit: TempUnit;
   soundEnabled: boolean;
   locating: boolean;
   onClose: () => void;
   onSelectCityIndex: (index: number) => void;
+  onMoveCity: (fromIdx: number, toIdx: number) => void;
   onRemoveCity: (index: number) => void;
   onOpenCityPicker: () => void;
   onLocateMe: () => void;
+  onToggleAutoLocate: () => void;
   onToggleUnit: (unit: TempUnit) => void;
   onToggleSound: () => void;
   onOpenSheet: (tab: 'wardrobe' | 'simulator') => void;
@@ -34,18 +44,33 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
   open,
   pinnedCities,
   activeCityIndex,
+  briefWeatherMap,
+  locatedCityKey,
+  locationSource,
+  autoLocate,
   unit,
   soundEnabled,
   locating,
   onClose,
   onSelectCityIndex,
+  onMoveCity,
   onRemoveCity,
   onOpenCityPicker,
   onLocateMe,
+  onToggleAutoLocate,
   onToggleUnit,
   onToggleSound,
   onOpenSheet,
 }) => {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -62,7 +87,7 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
       />
 
       {/* Slide-over drawer */}
-      <aside className="animate-ui-drawer relative z-10 flex h-full w-[300px] max-w-[85vw] flex-col border-r border-white/14 bg-slate-950/92 text-white shadow-2xl backdrop-blur-2xl sm:w-[330px]">
+      <aside className="animate-ui-drawer relative z-10 flex h-full w-[310px] max-w-[86vw] flex-col border-r border-white/14 bg-slate-950/92 text-white shadow-2xl backdrop-blur-2xl sm:w-[340px]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/12 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -88,7 +113,7 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
-          {/* Pinned Cities */}
+          {/* Pinned Cities with Live Brief Temps & Reordering */}
           <div>
             <div className="mb-2.5 flex items-center justify-between px-1">
               <span className="text-[13px] font-medium text-white/65">
@@ -100,13 +125,16 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
             <div className="space-y-1">
               {pinnedCities.map((city, idx) => {
                 const isActive = idx === activeCityIndex;
+                const brief = briefWeatherMap[cityCoordKey(city)];
+                const isLocated = locatedCityKey !== null && city.name === locatedCityKey;
+
                 return (
                   <div
                     key={`${city.name}-${city.latitude}-${city.longitude}`}
-                    className={`group flex items-center justify-between rounded-xl px-3 py-2.5 transition ${
+                    className={`group flex items-center justify-between rounded-xl px-2.5 py-2 transition ${
                       isActive
                         ? 'bg-white/14 text-white'
-                        : 'text-white/80 hover:bg-white/8 hover:text-white'
+                        : 'text-white/85 hover:bg-white/8 hover:text-white'
                     }`}
                   >
                     <button
@@ -115,34 +143,76 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                         onSelectCityIndex(idx);
                         onClose();
                       }}
-                      className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
                       <MapPin
                         className={`h-4 w-4 shrink-0 ${
-                          isActive ? 'text-amber-300' : 'text-white/50'
+                          isActive ? 'text-amber-300' : 'text-white/48'
                         }`}
                         strokeWidth={1.8}
                       />
-                      <div className="min-w-0">
-                        <div className="truncate text-[15px] font-normal">{city.name}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-[15px] font-normal">{city.name}</span>
+                          {isLocated && locationSource && (
+                            <span className="shrink-0 rounded-full bg-amber-300/20 px-1.5 py-0.5 text-[10px] text-amber-200">
+                              {locationSource === 'gps' ? 'GPS' : '网络'}
+                            </span>
+                          )}
+                        </div>
                         {(city.region || city.country) && (
-                          <div className="truncate text-[12px] font-normal text-white/55">
+                          <div className="truncate text-[11px] font-normal text-white/55">
                             {[city.region, city.country].filter(Boolean).join(' · ')}
                           </div>
                         )}
                       </div>
+
+                      {brief && (
+                        <div className="flex shrink-0 items-center gap-1 pr-1">
+                          <WeatherConditionIcon
+                            condition={brief.condition}
+                            isDay={brief.isDay}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-[14px] font-medium text-white tabular-nums">
+                            {formatTemp(brief.temperature, unit)}°
+                          </span>
+                        </div>
+                      )}
                     </button>
 
-                    {pinnedCities.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => onRemoveCity(idx)}
-                        aria-label={`移除 ${city.name}`}
-                        className="ml-2 rounded-lg p-1.5 text-white/45 opacity-80 transition hover:bg-white/10 hover:text-rose-300 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                    <div className="ml-1 flex shrink-0 items-center">
+                      {pinnedCities.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => onMoveCity(idx, idx - 1)}
+                            aria-label={`上移 ${city.name}`}
+                            className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === pinnedCities.length - 1}
+                            onClick={() => onMoveCity(idx, idx + 1)}
+                            aria-label={`下移 ${city.name}`}
+                            className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onRemoveCity(idx)}
+                            aria-label={`移除 ${city.name}`}
+                            className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-rose-300"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -176,9 +246,9 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
           </div>
 
           {/* Preferences */}
-          <div className="space-y-3 border-t border-white/12 pt-4">
+          <div className="space-y-2.5 border-t border-white/12 pt-4">
             <div className="px-1 text-[13px] font-medium text-white/65">
-              显示与声音
+              显示与定位
             </div>
 
             <div className="flex items-center justify-between rounded-xl bg-white/8 px-3.5 py-2.5">
@@ -198,6 +268,22 @@ export const SideMenuDrawer: React.FC<SideMenuDrawerProps> = ({
                 ))}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={onToggleAutoLocate}
+              className="flex w-full items-center justify-between rounded-xl bg-white/8 px-3.5 py-3 text-left transition hover:bg-white/12"
+            >
+              <span className="inline-flex items-center gap-2 text-[14px] font-normal text-white/90">
+                <LocateFixed className="h-4 w-4 text-sky-200" />
+                启动时自动定位
+              </span>
+              <span
+                className={`text-[13px] ${autoLocate ? 'text-amber-200' : 'text-white/55'}`}
+              >
+                {autoLocate ? '开启' : '关闭'}
+              </span>
+            </button>
 
             <button
               type="button"

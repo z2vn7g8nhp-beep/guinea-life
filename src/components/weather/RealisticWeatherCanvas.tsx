@@ -16,8 +16,6 @@ interface RainDrop {
   len: number;
   speed: number;
   layer: number;
-  opacity: number;
-  width: number;
 }
 
 interface SplashRing {
@@ -162,20 +160,64 @@ function getMoodFilter(condition: WeatherCondition, timeOfDay: TimeOfDay): strin
     if (condition === 'clear' || condition === 'partly-cloudy' || condition === 'windy') {
       return 'brightness(1.03) saturate(0.92) hue-rotate(-10deg)';
     }
-    return 'brightness(0.88) saturate(0.95)';
+    return 'brightness(0.86) saturate(0.95)';
   }
   if (timeOfDay === 'sunset') {
     if (condition === 'rain' || condition === 'heavy-rain' || condition === 'overcast') {
       return 'brightness(0.76) sepia(0.18) saturate(1.06)';
     }
   }
+  if (condition === 'snow' || condition === 'blizzard') {
+    return 'brightness(0.82) contrast(1.12) saturate(1.14)';
+  }
+  if (condition === 'fog') {
+    return 'brightness(0.8) contrast(1.08)';
+  }
+  if (condition === 'overcast') {
+    return 'brightness(0.92) contrast(1.04)';
+  }
   if (condition === 'heavy-rain') {
     return 'brightness(0.82) contrast(1.1)';
   }
   if (condition === 'drizzle') {
-    return 'brightness(1.04) saturate(0.9)';
+    return 'brightness(1.02) saturate(0.92)';
   }
   return 'none';
+}
+
+function getBackdropScrim(condition: WeatherCondition, timeOfDay: TimeOfDay): string {
+  const isBrightCloud =
+    timeOfDay !== 'night' &&
+    (condition === 'snow' || condition === 'blizzard' || condition === 'fog' || condition === 'overcast');
+  if (isBrightCloud) {
+    return 'linear-gradient(180deg, rgba(12,24,46,0.56) 0%, rgba(12,24,46,0.18) 32%, rgba(12,24,46,0.2) 66%, rgba(8,14,28,0.48) 100%)';
+  }
+  return 'linear-gradient(180deg, rgba(8,14,28,0.36) 0%, rgba(8,14,28,0.06) 28%, rgba(8,14,28,0.12) 66%, rgba(8,14,28,0.44) 100%)';
+}
+
+function needsParticles(
+  cond: WeatherCondition,
+  temp: number,
+  wind: number,
+  tod: TimeOfDay
+): boolean {
+  if (
+    cond === 'drizzle' ||
+    cond === 'rain' ||
+    cond === 'heavy-rain' ||
+    cond === 'thunderstorm' ||
+    cond === 'snow' ||
+    cond === 'blizzard' ||
+    cond === 'fog' ||
+    cond === 'windy'
+  ) {
+    return true;
+  }
+  if (wind >= 24) return true;
+  if (temp <= 0) return true;
+  if (tod === 'night' && (cond === 'clear' || cond === 'partly-cloudy')) return true;
+  if (temp >= 31 && tod !== 'night' && (cond === 'clear' || cond === 'partly-cloudy')) return true;
+  return false;
 }
 
 function createLightningBolt(w: number, h: number): LightningBolt {
@@ -220,6 +262,23 @@ function createLightningBolt(w: number, h: number): LightningBolt {
   };
 }
 
+function buildRadialSprite(size: number, innerColor: string, midColor: string, outerColor: string): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const gctx = c.getContext('2d');
+  if (gctx) {
+    const r = size * 0.5;
+    const grad = gctx.createRadialGradient(r, r, 0, r, r, r);
+    grad.addColorStop(0, innerColor);
+    grad.addColorStop(0.55, midColor);
+    grad.addColorStop(1, outerColor);
+    gctx.fillStyle = grad;
+    gctx.fillRect(0, 0, size, size);
+  }
+  return c;
+}
+
 export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
   condition,
   temperature,
@@ -254,18 +313,64 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
     () => getMoodFilter(condition, timeOfDay),
     [condition, timeOfDay]
   );
+  const scrimStyle = useMemo(
+    () => getBackdropScrim(condition, timeOfDay),
+    [condition, timeOfDay]
+  );
 
-  // Smooth crossfade between active & previous photo
-  const [activePhoto, setActivePhoto] = useState<WeatherPhotoKey>(photoKey);
-  const [prevPhoto, setPrevPhoto] = useState<WeatherPhotoKey | null>(null);
+  const base = import.meta.env.BASE_URL || '/';
+
+  // Decode incoming backdrop image cleanly before fading out old backdrop (with its own old filter)
+  const [activeBackdrop, setActiveBackdrop] = useState<{ key: WeatherPhotoKey; filter: string }>({
+    key: photoKey,
+    filter: moodFilter,
+  });
+  const [prevBackdrop, setPrevBackdrop] = useState<{ key: WeatherPhotoKey; filter: string } | null>(null);
 
   useEffect(() => {
-    if (photoKey === activePhoto) return;
-    setPrevPhoto(activePhoto);
-    setActivePhoto(photoKey);
-    const id = window.setTimeout(() => setPrevPhoto(null), 750);
+    if (photoKey === activeBackdrop.key) {
+      if (moodFilter !== activeBackdrop.filter) {
+        setActiveBackdrop((cur) => ({ ...cur, filter: moodFilter }));
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const img = new Image();
+    img.src = `${base}assets/weather/${photoKey}.webp`;
+
+    const commitSwap = () => {
+      if (cancelled) return;
+      setPrevBackdrop(activeBackdrop);
+      setActiveBackdrop({ key: photoKey, filter: moodFilter });
+    };
+
+    if (typeof img.decode === 'function') {
+      img.decode().then(commitSwap).catch(commitSwap);
+    } else {
+      img.onload = commitSwap;
+      img.onerror = commitSwap;
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [photoKey, moodFilter, base, activeBackdrop]);
+
+  useEffect(() => {
+    if (!prevBackdrop) return;
+    const id = window.setTimeout(() => setPrevBackdrop(null), 580);
     return () => window.clearTimeout(id);
-  }, [photoKey, activePhoto]);
+  }, [prevBackdrop]);
+
+  const activeParticles = needsParticles(condition, temperature, windSpeed, timeOfDay);
+  const ensureRunningRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    if (activeParticles) {
+      ensureRunningRef.current();
+    }
+  }, [activeParticles, condition, temperature, windSpeed, timeOfDay]);
 
   useEffect(() => {
     const fxCanvas = fxCanvasRef.current;
@@ -273,10 +378,22 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
     const ctx = fxCanvas.getContext('2d');
     if (!ctx) return;
 
+    const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    let reducedMotion = motionQuery?.matches ?? false;
+    const onMotionChange = (e: MediaQueryListEvent) => {
+      reducedMotion = e.matches;
+      if (reducedMotion) {
+        ctx.clearRect(0, 0, width, height);
+      } else {
+        ensureRunning();
+      }
+    };
+    motionQuery?.addEventListener?.('change', onMotionChange);
+
     let width = window.innerWidth;
     let height = window.innerHeight;
 
-    const resize = () => {
+    const applySize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -286,42 +403,68 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
       fxCanvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    resize();
-    window.addEventListener('resize', resize);
+    applySize();
 
-    const raindrops: RainDrop[] = Array.from({ length: 280 }, (_, i) => {
+    const onResize = () => {
+      const nextW = window.innerWidth;
+      const nextH = window.innerHeight;
+      // Ignore small vertical-only Chrome mobile URL bar collapse/expand jank
+      if (nextW === width && Math.abs(nextH - height) < 92) return;
+      applySize();
+    };
+    window.addEventListener('resize', onResize);
+
+    // Cached offscreen sprites (zero per-frame gradient allocations for snow/fog)
+    const bokehSprite = buildRadialSprite(
+      64,
+      'rgba(255, 255, 255, 0.78)',
+      'rgba(235, 246, 255, 0.28)',
+      'rgba(235, 246, 255, 0)'
+    );
+    const fogDaySprite = buildRadialSprite(
+      96,
+      'rgba(240, 246, 252, 0.9)',
+      'rgba(240, 246, 252, 0.38)',
+      'rgba(240, 246, 252, 0)'
+    );
+    const fogNightSprite = buildRadialSprite(
+      96,
+      'rgba(128, 148, 182, 0.85)',
+      'rgba(128, 148, 182, 0.34)',
+      'rgba(128, 148, 182, 0)'
+    );
+
+    const raindrops: RainDrop[] = Array.from({ length: 240 }, (_, i) => {
       const layer = i % 3;
       return {
         x: Math.random() * (width + 200) - 100,
         y: Math.random() * height,
-        len: 14 + layer * 14 + Math.random() * 12,
-        speed: 580 + layer * 250 + Math.random() * 160,
+        len: 14 + layer * 13 + Math.random() * 10,
+        speed: 580 + layer * 240 + Math.random() * 150,
         layer,
-        opacity: 0.16 + layer * 0.14,
-        width: 0.75 + layer * 0.45,
       };
     });
 
     const splashes: SplashRing[] = [];
 
-    const glassDrops: GlassDrop[] = Array.from({ length: 34 }, () => ({
+    const glassDrops: GlassDrop[] = Array.from({ length: 28 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      r: 2 + Math.random() * 4,
+      r: 2 + Math.random() * 3.8,
       vy: 0,
       sliding: Math.random() < 0.25,
       wobblePhase: Math.random() * Math.PI * 2,
       trail: [],
     }));
 
-    const snowflakes: SnowFlake[] = Array.from({ length: 180 }, (_, i) => {
+    const snowflakes: SnowFlake[] = Array.from({ length: 165 }, (_, i) => {
       const layer = i % 3;
       return {
         x: Math.random() * width,
         y: Math.random() * height,
         r:
           layer === 2
-            ? 4.2 + Math.random() * 4.4
+            ? 4.4 + Math.random() * 4.2
             : layer === 1
             ? 2.1 + Math.random() * 2.0
             : 1.0 + Math.random() * 1.1,
@@ -331,7 +474,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
         layer,
         rotation: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 1.4,
-        crystalline: layer === 1 && Math.random() < 0.45,
+        crystalline: layer === 1 && Math.random() < 0.42,
       };
     });
 
@@ -341,7 +484,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
       w: 440 + Math.random() * 340,
       h: 150 + Math.random() * 130,
       speed: 10 + Math.random() * 16,
-      alpha: 0.11 + Math.random() * 0.12,
+      alpha: 0.12 + Math.random() * 0.12,
       phase: Math.random() * Math.PI * 2,
     }));
 
@@ -356,7 +499,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
       alpha: 0.08 + Math.random() * 0.1,
     }));
 
-    const nightStars: NightStar[] = Array.from({ length: 42 }, () => ({
+    const nightStars: NightStar[] = Array.from({ length: 40 }, () => ({
       x: Math.random(),
       y: Math.random() * 0.55,
       r: 0.6 + Math.random() * 1.2,
@@ -373,8 +516,15 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
     let elapsed = 0;
     let lastTime = performance.now();
     let rafId = 0;
+    let isRunning = false;
 
     const frame = (now: number) => {
+      if (document.hidden || reducedMotion) {
+        isRunning = false;
+        rafId = 0;
+        return;
+      }
+
       const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
       lastTime = now;
       elapsed += dt;
@@ -386,6 +536,13 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
         timeOfDay: tod,
         onLightningFlash: flashCb,
       } = propsRef.current;
+
+      if (!needsParticles(cond, temp, wind, tod) && splashes.length === 0 && lightningFlash <= 0.01) {
+        ctx.clearRect(0, 0, width, height);
+        isRunning = false;
+        rafId = 0;
+        return;
+      }
 
       ctx.clearRect(0, 0, width, height);
 
@@ -446,7 +603,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
         if (nextLightningCountdown <= 0) {
           lightningBolt = createLightningBolt(width, height);
           lightningFlash = 0.92;
-          nextLightningCountdown = 2.8 + Math.random() * 4.2;
+          nextLightningCountdown = 3.0 + Math.random() * 4.2;
           flashCb?.();
         }
       } else {
@@ -455,7 +612,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
       }
 
       if (lightningFlash > 0.01) {
-        ctx.fillStyle = `rgba(218, 232, 255, ${lightningFlash * 0.26})`;
+        ctx.fillStyle = `rgba(218, 232, 255, ${lightningFlash * 0.24})`;
         ctx.fillRect(0, 0, width, height);
         lightningFlash = Math.max(0, lightningFlash - dt * 2.9);
       }
@@ -484,35 +641,29 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
         ctx.restore();
       }
 
-      // Fog mist drift
+      // Fog mist drift via cached radial sprite (zero per-frame gradient allocations)
       if (cond === 'fog' || cond === 'drizzle') {
         const fogStrength = cond === 'fog' ? 0.85 : 0.24;
+        const fogSprite = isNight ? fogNightSprite : fogDaySprite;
+        ctx.save();
         for (const fb of fogBanks) {
           fb.x += (fb.speed + wind * 0.45) * dt;
           if (fb.x - fb.w * 0.5 > width) fb.x = -fb.w * 0.6;
           const fy = height * fb.yRatio + Math.sin(elapsed * 0.35 + fb.phase) * 14;
-          const grad = ctx.createRadialGradient(fb.x, fy, fb.h * 0.1, fb.x, fy, fb.w * 0.52);
-          const fAlpha = fb.alpha * fogStrength;
-          const fogTone = isNight ? '128, 148, 182' : '240, 246, 252';
-          grad.addColorStop(0, `rgba(${fogTone}, ${fAlpha})`);
-          grad.addColorStop(0.6, `rgba(${fogTone}, ${fAlpha * 0.4})`);
-          grad.addColorStop(1, `rgba(${fogTone}, 0)`);
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.ellipse(fb.x, fy, fb.w * 0.55, fb.h * 0.5, 0, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.globalAlpha = fb.alpha * fogStrength;
+          ctx.drawImage(fogSprite, fb.x - fb.w * 0.5, fy - fb.h * 0.5, fb.w, fb.h);
         }
+        ctx.restore();
       }
 
-      // Rain streaks + ground splashes + refractive camera-lens droplets
+      // Batched 3-layer rain streaks (zero per-drop gradient allocations) + splashes + lens drops
       if (isRainy) {
         const rainDensity = cond === 'drizzle' ? 0.36 : cond === 'rain' ? 0.68 : 1;
         const activeDrops = Math.floor(raindrops.length * rainDensity);
         const speedMult = cond === 'drizzle' ? 0.68 : cond === 'rain' ? 1 : 1.32;
         const windTilt = (wind / 42) * 0.36 + (cond === 'thunderstorm' ? 0.14 : 0.04);
 
-        ctx.save();
-        ctx.lineCap = 'round';
+        // Update positions once
         for (let i = 0; i < activeDrops; i++) {
           const d = raindrops[i];
           const vy = d.speed * speedMult;
@@ -521,7 +672,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
           d.y += vy * dt;
 
           if (d.y > height + 20) {
-            if (d.layer >= 1 && splashes.length < 28 && Math.random() < 0.22) {
+            if (d.layer >= 1 && splashes.length < 24 && Math.random() < 0.2) {
               const sy = height - 8 - Math.random() * 24;
               splashes.push({
                 x: d.x,
@@ -539,17 +690,22 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
             d.x = Math.random() * (width + 240) - 120;
           }
           if (d.x > width + 140) d.x -= width + 240;
+        }
 
-          const tailX = d.x - windTilt * d.len * speedMult;
-          const tailY = d.y - d.len * speedMult;
-          const grad = ctx.createLinearGradient(tailX, tailY, d.x, d.y);
-          grad.addColorStop(0, 'rgba(210, 232, 255, 0)');
-          grad.addColorStop(1, `rgba(225, 240, 255, ${d.opacity})`);
-          ctx.strokeStyle = grad;
-          ctx.lineWidth = d.width;
+        // Batch draw by depth layer (only 3 stroke calls per frame total!)
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (let layer = 0; layer < 3; layer++) {
+          ctx.strokeStyle = `rgba(220, 238, 255, ${0.15 + layer * 0.12})`;
+          ctx.lineWidth = 0.8 + layer * 0.42;
           ctx.beginPath();
-          ctx.moveTo(tailX, tailY);
-          ctx.lineTo(d.x, d.y);
+          for (let i = layer; i < activeDrops; i += 3) {
+            const d = raindrops[i];
+            const tailX = d.x - windTilt * d.len * speedMult;
+            const tailY = d.y - d.len * speedMult;
+            ctx.moveTo(tailX, tailY);
+            ctx.lineTo(d.x, d.y);
+          }
           ctx.stroke();
         }
         ctx.restore();
@@ -579,7 +735,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
           }
         }
 
-        const activeGlass = cond === 'drizzle' ? 12 : cond === 'rain' ? 22 : 34;
+        const activeGlass = cond === 'drizzle' ? 10 : cond === 'rain' ? 18 : 28;
         for (let i = 0; i < activeGlass; i++) {
           const gd = glassDrops[i];
           if (gd.sliding) {
@@ -605,24 +761,12 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
             ctx.fill();
           }
 
-          const dropGrad = ctx.createRadialGradient(
-            gd.x - gd.r * 0.28,
-            gd.y - gd.r * 0.28,
-            gd.r * 0.1,
-            gd.x,
-            gd.y,
-            gd.r
-          );
-          dropGrad.addColorStop(0, 'rgba(255, 255, 255, 0.34)');
-          dropGrad.addColorStop(0.55, 'rgba(180, 214, 248, 0.14)');
-          dropGrad.addColorStop(1, 'rgba(30, 58, 96, 0.22)');
-
-          ctx.fillStyle = dropGrad;
+          ctx.fillStyle = 'rgba(186, 218, 248, 0.22)';
           ctx.beginPath();
           ctx.arc(gd.x, gd.y, gd.r, 0, Math.PI * 2);
           ctx.fill();
 
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
           ctx.lineWidth = 0.65;
           ctx.stroke();
 
@@ -633,7 +777,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
         }
       }
 
-      // Multi-depth snow + sub-zero frost vignette
+      // Multi-depth snow via cached bokeh sprite + frost vignette
       if (isSnow) {
         const snowDensity = cond === 'blizzard' ? 1 : 0.68;
         const activeSnow = Math.floor(snowflakes.length * snowDensity);
@@ -654,14 +798,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
           if (sf.x < -24) sf.x = width + 20;
 
           if (sf.layer === 2) {
-            const fgGrad = ctx.createRadialGradient(sf.x, sf.y, 0, sf.x, sf.y, sf.r);
-            fgGrad.addColorStop(0, 'rgba(255, 255, 255, 0.72)');
-            fgGrad.addColorStop(0.6, 'rgba(235, 246, 255, 0.28)');
-            fgGrad.addColorStop(1, 'rgba(235, 246, 255, 0)');
-            ctx.fillStyle = fgGrad;
-            ctx.beginPath();
-            ctx.arc(sf.x, sf.y, sf.r, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.drawImage(bokehSprite, sf.x - sf.r, sf.y - sf.r, sf.r * 2, sf.r * 2);
           } else if (sf.crystalline) {
             ctx.save();
             ctx.translate(sf.x, sf.y);
@@ -686,7 +823,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
       }
 
       if (temp <= 0 || isSnow) {
-        const frostStrength = isSnow ? 0.22 : Math.min(0.2, (1 - temp) * 0.03);
+        const frostStrength = isSnow ? 0.2 : Math.min(0.18, (1 - temp) * 0.03);
         const frostGrad = ctx.createRadialGradient(
           width * 0.5,
           height * 0.5,
@@ -711,14 +848,10 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
             ws.x = -ws.len - Math.random() * 140;
             ws.y = Math.random() * height * 0.85;
           }
-          const grad = ctx.createLinearGradient(ws.x - ws.len, ws.y, ws.x, ws.y);
-          grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-          grad.addColorStop(0.5, `rgba(255, 255, 255, ${ws.alpha})`);
-          grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-          ctx.strokeStyle = grad;
+          ctx.strokeStyle = `rgba(255, 255, 255, ${ws.alpha})`;
           ctx.lineWidth = 1.2;
           ctx.beginPath();
-          for (let xOff = 0; xOff <= ws.len; xOff += 14) {
+          for (let xOff = 0; xOff <= ws.len; xOff += 16) {
             const sx = ws.x - ws.len + xOff;
             const sy = ws.y + Math.sin(xOff * ws.freq + elapsed * 3 + ws.phase) * ws.amp;
             if (xOff === 0) ctx.moveTo(sx, sy);
@@ -735,11 +868,7 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
         for (let i = 0; i < 4; i++) {
           const hy = height * (0.74 + i * 0.055);
           const waveOffset = Math.sin(elapsed * 4 + i * 1.4) * 16;
-          const shimmerGrad = ctx.createLinearGradient(0, hy, width, hy);
-          shimmerGrad.addColorStop(0, 'rgba(255, 232, 178, 0)');
-          shimmerGrad.addColorStop(0.5, 'rgba(255, 240, 198, 0.055)');
-          shimmerGrad.addColorStop(1, 'rgba(255, 232, 178, 0)');
-          ctx.strokeStyle = shimmerGrad;
+          ctx.strokeStyle = 'rgba(255, 240, 198, 0.05)';
           ctx.lineWidth = 2.2;
           ctx.beginPath();
           ctx.moveTo(0, hy + waveOffset * 0.15);
@@ -759,49 +888,66 @@ export const RealisticWeatherCanvas: React.FC<RealisticWeatherCanvasProps> = ({
       rafId = window.requestAnimationFrame(frame);
     };
 
-    rafId = window.requestAnimationFrame(frame);
+    const ensureRunning = () => {
+      const { condition: c, temperature: t, windSpeed: w, timeOfDay: td } = propsRef.current;
+      if (isRunning || document.hidden || reducedMotion || !needsParticles(c, t, w, td)) {
+        return;
+      }
+      isRunning = true;
+      lastTime = performance.now();
+      rafId = window.requestAnimationFrame(frame);
+    };
+
+    ensureRunningRef.current = ensureRunning;
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        ensureRunning();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    ensureRunning();
 
     return () => {
-      window.cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resize);
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      motionQuery?.removeEventListener?.('change', onMotionChange);
     };
   }, []);
 
-  const base = import.meta.env.BASE_URL || '/';
-
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-slate-950">
-      {/* Previous sky backdrop during crossfade */}
-      {prevPhoto && (
+      {/* Stable breathing wrapper so photo crossfades never reset zoom scale */}
+      <div className="animate-sky-breathe absolute inset-0">
+        {prevBackdrop && (
+          <img
+            src={`${base}assets/weather/${prevBackdrop.key}.webp`}
+            alt=""
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            style={{ filter: prevBackdrop.filter }}
+          />
+        )}
+
         <img
-          src={`${base}assets/weather/${prevPhoto}.webp`}
+          key={activeBackdrop.key}
+          src={`${base}assets/weather/${activeBackdrop.key}.webp`}
           alt=""
           draggable={false}
-          className="animate-sky-breathe absolute inset-0 h-full w-full object-cover object-center"
-          style={{ filter: moodFilter }}
+          className="animate-ui-fade absolute inset-0 h-full w-full object-cover object-center transition-[filter] duration-500"
+          style={{ filter: activeBackdrop.filter }}
         />
-      )}
+      </div>
 
-      {/* Active photorealistic sky photograph */}
-      <img
-        key={activePhoto}
-        src={`${base}assets/weather/${activePhoto}.webp`}
-        alt=""
-        draggable={false}
-        className="animate-sky-breathe animate-ui-fade absolute inset-0 h-full w-full object-cover object-center transition-all duration-700"
-        style={{ filter: moodFilter }}
-      />
-
-      {/* Subtle atmospheric contrast scrim for razor-sharp white text on bright skies */}
+      {/* Condition-aware atmospheric contrast scrim for razor-sharp white text */}
       <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(8,14,28,0.34) 0%, rgba(8,14,28,0.06) 28%, rgba(8,14,28,0.12) 66%, rgba(8,14,28,0.42) 100%)',
-        }}
+        className="absolute inset-0 transition-all duration-500"
+        style={{ background: scrimStyle }}
       />
 
-      {/* Live 2D Particle Weather Engine (Rain, Glass Droplets, Lightning, Snow, Fog, Wind) */}
+      {/* Live 2D Particle Weather Engine */}
       <canvas ref={fxCanvasRef} className="absolute inset-0 h-full w-full" />
     </div>
   );

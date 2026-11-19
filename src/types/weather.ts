@@ -13,7 +13,9 @@ export type WeatherCondition =
 
 export type TimeOfDay = 'dawn' | 'day' | 'sunset' | 'night';
 
-export type AppModuleId = 'weather' | 'wardrobe' | 'lifestyle' | 'upcoming';
+export type MascotCoatId = 'classic' | 'cream' | 'panda' | 'caramel';
+
+export type MascotSnackId = 'hay' | 'strawberry' | 'sweet-potato' | 'lettuce';
 
 export type TempTierId =
   | 'freezing'   // <= 0°C
@@ -49,6 +51,29 @@ export interface DailyPoint {
   tempMin: number;
   precipitationProb: number;
   uvIndexMax: number;
+  windSpeedMax?: number;
+  precipitationSum?: number;
+}
+
+export interface AirQualityInfo {
+  aqi: number;
+  pm25: number;
+  pm10: number;
+  level: string;
+  advice: string;
+  needsMask: boolean;
+}
+
+export interface CityBriefWeather {
+  temperature: number;
+  condition: WeatherCondition;
+  isDay: boolean;
+}
+
+export interface CompanionStats {
+  firstVisitDate: string;
+  feedCount: number;
+  petCount: number;
 }
 
 export interface WeatherSnapshot {
@@ -71,6 +96,7 @@ export interface WeatherSnapshot {
   updatedAt: string;
   hourly: HourlyPoint[];
   daily: DailyPoint[];
+  airQuality?: AirQualityInfo;
   isSimulated?: boolean;
   isOfflineFallback?: boolean;
 }

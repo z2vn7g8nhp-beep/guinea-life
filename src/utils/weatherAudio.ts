@@ -7,12 +7,31 @@ class WeatherAudioEngine {
   private filterNode: BiquadFilterNode | null = null;
   private lfoOsc: OscillatorNode | null = null;
   private lfoGain: GainNode | null = null;
-  private thunderTimer: number | null = null;
+  private suspendTimer: number | null = null;
+  private visibilityWired = false;
   private enabled = false;
   private currentCondition: WeatherCondition = 'clear';
+  private currentWindSpeed = 10;
+
+  private ensureVisibilityHook(): void {
+    if (this.visibilityWired || typeof document === 'undefined') return;
+    this.visibilityWired = true;
+    document.addEventListener('visibilitychange', () => {
+      if (!this.ctx) return;
+      if (document.hidden) {
+        if (this.ctx.state === 'running') {
+          void this.ctx.suspend();
+        }
+      } else if (this.enabled && this.ctx.state === 'suspended') {
+        void this.ctx.resume();
+      }
+    });
+  }
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
+    this.ensureVisibilityHook();
+
     const AudioCtx =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -93,6 +112,12 @@ class WeatherAudioEngine {
   public setEnabled(enable: boolean, condition: WeatherCondition, windSpeed: number): void {
     this.enabled = enable;
     this.currentCondition = condition;
+    this.currentWindSpeed = windSpeed;
+
+    if (this.suspendTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(this.suspendTimer);
+      this.suspendTimer = null;
+    }
 
     const ctx = this.ensureContext();
     if (!ctx || !this.masterGain) return;
@@ -102,22 +127,25 @@ class WeatherAudioEngine {
         void ctx.resume();
       }
       this.startBaseGraph();
-      this.applyWeatherProfile(condition, windSpeed);
-      this.scheduleThunderIfNeeded();
+      this.applyWeatherProfile(this.currentCondition, this.currentWindSpeed);
     } else {
-      this.masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
-      if (this.thunderTimer !== null) {
-        window.clearTimeout(this.thunderTimer);
-        this.thunderTimer = null;
+      this.masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.18);
+      if (typeof window !== 'undefined') {
+        this.suspendTimer = window.setTimeout(() => {
+          this.suspendTimer = null;
+          if (!this.enabled && this.ctx && this.ctx.state === 'running') {
+            void this.ctx.suspend();
+          }
+        }, 280);
       }
     }
   }
 
   public update(condition: WeatherCondition, windSpeed: number): void {
     this.currentCondition = condition;
+    this.currentWindSpeed = windSpeed;
     if (!this.enabled) return;
     this.applyWeatherProfile(condition, windSpeed);
-    this.scheduleThunderIfNeeded();
   }
 
   private applyWeatherProfile(condition: WeatherCondition, windSpeed: number): void {
@@ -179,6 +207,9 @@ class WeatherAudioEngine {
   public triggerThunder(): void {
     if (!this.enabled || !this.ctx || !this.masterGain) return;
     const ctx = this.ctx;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
     const now = ctx.currentTime;
 
     const buffer = this.createPinkNoiseBuffer(ctx, 2.5);
@@ -187,12 +218,12 @@ class WeatherAudioEngine {
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(160, now);
-    filter.frequency.exponentialRampToValueAtTime(55, now + 2.2);
+    filter.frequency.setValueAtTime(175, now);
+    filter.frequency.exponentialRampToValueAtTime(52, now + 2.2);
 
     const env = ctx.createGain();
     env.gain.setValueAtTime(0.01, now);
-    env.gain.linearRampToValueAtTime(0.85, now + 0.08);
+    env.gain.linearRampToValueAtTime(0.9, now + 0.08);
     env.gain.exponentialRampToValueAtTime(0.01, now + 2.4);
 
     src.connect(filter);
@@ -202,21 +233,8 @@ class WeatherAudioEngine {
     src.stop(now + 2.5);
   }
 
-  private scheduleThunderIfNeeded(): void {
-    if (this.thunderTimer !== null) {
-      window.clearTimeout(this.thunderTimer);
-      this.thunderTimer = null;
-    }
-    if (!this.enabled || this.currentCondition !== 'thunderstorm') return;
-
-    const delay = 3800 + Math.random() * 5200;
-    this.thunderTimer = window.setTimeout(() => {
-      this.triggerThunder();
-      this.scheduleThunderIfNeeded();
-    }, delay);
-  }
-
   public playPetChime(): void {
+    if (!this.enabled) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
     if (ctx.state === 'suspended') {
@@ -239,6 +257,33 @@ class WeatherAudioEngine {
       gain.connect(ctx.destination);
       osc.start(now + idx * 0.08);
       osc.stop(now + idx * 0.08 + 0.15);
+    });
+  }
+
+  public playEatChime(): void {
+    if (!this.enabled) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+    const now = ctx.currentTime;
+    const notes = [580, 740, 880];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.075);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.12, now + idx * 0.075 + 0.07);
+
+      gain.gain.setValueAtTime(0.001, now + idx * 0.075);
+      gain.gain.linearRampToValueAtTime(0.055, now + idx * 0.075 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.075 + 0.11);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.075);
+      osc.stop(now + idx * 0.075 + 0.12);
     });
   }
 }

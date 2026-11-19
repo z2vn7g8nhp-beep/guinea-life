@@ -3,7 +3,10 @@ import test from 'node:test';
 import {
   PRESET_CITIES,
   buildFallbackWeather,
+  cityCoordKey,
+  classifyAirQuality,
   deriveTimeOfDay,
+  formatLocalYmd,
   mapWmoCodeToCondition,
   normalizeChineseCityName,
 } from './weatherApi.ts';
@@ -30,16 +33,33 @@ test('deriveTimeOfDay distinguishes dawn, day, sunset, and night', () => {
   assert.equal(deriveTimeOfDay('2026-11-19T22:00', sunrise, sunset, false), 'night');
 });
 
-test('buildFallbackWeather generates complete 12-hour and 7-day schedules', () => {
+test('buildFallbackWeather generates complete 24-hour, 7-day, and AQI schedules', () => {
   const weather = buildFallbackWeather(PRESET_CITIES[0]);
-  assert.equal(weather.hourly.length, 12);
+  assert.equal(weather.hourly.length, 24);
   assert.equal(weather.daily.length, 7);
   assert.equal(weather.isOfflineFallback, true);
+  assert.ok(weather.airQuality);
+  assert.equal(weather.daily[0].date, formatLocalYmd(new Date()));
 });
 
-test('normalizeChineseCityName strips city suffix when longer than 2 chars', () => {
+test('classifyAirQuality sets needsMask at AQI >= 101', () => {
+  const good = classifyAirQuality(38, 12, 24);
+  assert.equal(good.level, '优');
+  assert.equal(good.needsMask, false);
+
+  const moderate = classifyAirQuality(88, 32, 55);
+  assert.equal(moderate.level, '良');
+  assert.equal(moderate.needsMask, false);
+
+  const unhealthy = classifyAirQuality(128, 48, 86);
+  assert.equal(unhealthy.level, '轻度污染');
+  assert.equal(unhealthy.needsMask, true);
+});
+
+test('normalizeChineseCityName and cityCoordKey behave deterministically', () => {
   assert.equal(normalizeChineseCityName('郑州市'), '郑州');
   assert.equal(normalizeChineseCityName('上海市 '), '上海');
   assert.equal(normalizeChineseCityName('津市'), '津市');
   assert.equal(normalizeChineseCityName('London'), 'London');
+  assert.equal(cityCoordKey(PRESET_CITIES[0]), '31.23,121.47');
 });

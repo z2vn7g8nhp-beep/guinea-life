@@ -1,4 +1,6 @@
 import type {
+  AirQualityInfo,
+  CityBriefWeather,
   CityLocation,
   DailyPoint,
   HourlyPoint,
@@ -32,6 +34,72 @@ export const CONDITION_LABELS: Record<WeatherCondition, string> = {
   blizzard: '暴风雪',
   windy: '清风扬拂',
 };
+
+export function cityCoordKey(city: Pick<CityLocation, 'latitude' | 'longitude'>): string {
+  return `${city.latitude.toFixed(2)},${city.longitude.toFixed(2)}`;
+}
+
+export function formatLocalYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function classifyAirQuality(aqi: number, pm25: number, pm10: number): AirQualityInfo {
+  const cleanAqi = Math.max(0, Math.round(aqi));
+  const cleanPm25 = Math.max(0, Math.round(pm25));
+  const cleanPm10 = Math.max(0, Math.round(pm10));
+
+  if (cleanAqi <= 50) {
+    return {
+      aqi: cleanAqi,
+      pm25: cleanPm25,
+      pm10: cleanPm10,
+      level: '优',
+      advice: '空气清新，适合户外活动',
+      needsMask: false,
+    };
+  }
+  if (cleanAqi <= 100) {
+    return {
+      aqi: cleanAqi,
+      pm25: cleanPm25,
+      pm10: cleanPm10,
+      level: '良',
+      advice: '空气良好，正常户外出行',
+      needsMask: false,
+    };
+  }
+  if (cleanAqi <= 150) {
+    return {
+      aqi: cleanAqi,
+      pm25: cleanPm25,
+      pm10: cleanPm10,
+      level: '轻度污染',
+      advice: '敏感人群减少剧烈运动，建议戴口罩',
+      needsMask: true,
+    };
+  }
+  if (cleanAqi <= 200) {
+    return {
+      aqi: cleanAqi,
+      pm25: cleanPm25,
+      pm10: cleanPm10,
+      level: '中度污染',
+      advice: '空气质量不佳，出门请佩戴口罩',
+      needsMask: true,
+    };
+  }
+  return {
+    aqi: cleanAqi,
+    pm25: cleanPm25,
+    pm10: cleanPm10,
+    level: '重度污染',
+    advice: '重度雾霾，尽量室内停留并做好防护',
+    needsMask: true,
+  };
+}
 
 export function mapWmoCodeToCondition(code: number, windSpeedKmh = 0): WeatherCondition {
   if (code === 0) {
@@ -97,6 +165,29 @@ export function normalizeChineseCityName(raw: string): string {
     return trimmed.slice(0, -1);
   }
   return trimmed;
+}
+
+function createCombinedSignal(timeoutMs: number, external?: AbortSignal): {
+  signal: AbortSignal;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = () => controller.abort();
+  if (external) {
+    if (external.aborted) {
+      controller.abort();
+    } else {
+      external.addEventListener('abort', onAbort, { once: true });
+    }
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      window.clearTimeout(timer);
+      if (external) external.removeEventListener('abort', onAbort);
+    },
+  };
 }
 
 export async function reverseGeocodeCity(
@@ -284,28 +375,34 @@ export async function searchCities(query: string): Promise<CityLocation[]> {
 
 export function buildFallbackWeather(city: CityLocation): WeatherSnapshot {
   const now = new Date();
-  const baseTempMap: Record<string, { temp: number; cond: WeatherCondition; hum: number; wind: number }> = {
-    哈尔滨: { temp: -7, cond: 'snow', hum: 76, wind: 19 },
-    北京: { temp: 8, cond: 'clear', hum: 38, wind: 16 },
-    上海: { temp: 16, cond: 'partly-cloudy', hum: 62, wind: 14 },
-    深圳: { temp: 26, cond: 'clear', hum: 68, wind: 12 },
-    成都: { temp: 14, cond: 'fog', hum: 84, wind: 7 },
-    拉萨: { temp: 5, cond: 'clear', hum: 28, wind: 21 },
-    东京: { temp: 15, cond: 'rain', hum: 82, wind: 18 },
-    伦敦: { temp: 10, cond: 'drizzle', hum: 88, wind: 24 },
-    雷克雅未克: { temp: -2, cond: 'blizzard', hum: 85, wind: 36 },
+  const baseTempMap: Record<string, { temp: number; cond: WeatherCondition; hum: number; wind: number; aqi: number }> = {
+    哈尔滨: { temp: -7, cond: 'snow', hum: 76, wind: 19, aqi: 46 },
+    北京: { temp: 8, cond: 'clear', hum: 38, wind: 16, aqi: 54 },
+    上海: { temp: 16, cond: 'partly-cloudy', hum: 62, wind: 14, aqi: 42 },
+    深圳: { temp: 26, cond: 'clear', hum: 68, wind: 12, aqi: 36 },
+    成都: { temp: 14, cond: 'fog', hum: 84, wind: 7, aqi: 82 },
+    拉萨: { temp: 5, cond: 'clear', hum: 28, wind: 21, aqi: 24 },
+    东京: { temp: 15, cond: 'rain', hum: 82, wind: 18, aqi: 31 },
+    伦敦: { temp: 10, cond: 'drizzle', hum: 88, wind: 24, aqi: 28 },
+    雷克雅未克: { temp: -2, cond: 'blizzard', hum: 85, wind: 36, aqi: 16 },
   };
 
-  const preset = baseTempMap[city.name] ?? { temp: 20, cond: 'partly-cloudy' as WeatherCondition, hum: 58, wind: 13 };
+  const preset = baseTempMap[city.name] ?? {
+    temp: 20,
+    cond: 'partly-cloudy' as WeatherCondition,
+    hum: 58,
+    wind: 13,
+    aqi: 45,
+  };
   const hour = now.getHours();
   const isDay = hour >= 6 && hour < 18;
   const timeOfDay: TimeOfDay = hour >= 5 && hour < 7 ? 'dawn' : hour >= 17 && hour < 19 ? 'sunset' : isDay ? 'day' : 'night';
 
-  const hourly: HourlyPoint[] = Array.from({ length: 12 }, (_, idx) => {
+  const hourly: HourlyPoint[] = Array.from({ length: 24 }, (_, idx) => {
     const h = (hour + idx) % 24;
     const wave = Math.round(Math.sin(((h - 8) / 24) * Math.PI * 2) * 3.5);
     return {
-      time: `${String(h).padStart(2, '0')}:00`,
+      time: `${formatLocalYmd(new Date(now.getTime() + idx * 3600_000))}T${String(h).padStart(2, '0')}:00`,
       hourLabel: idx === 0 ? '现在' : `${String(h).padStart(2, '0')}:00`,
       temperature: preset.temp + wave,
       condition: idx % 5 === 4 && preset.cond === 'clear' ? 'partly-cloudy' : preset.cond,
@@ -315,17 +412,20 @@ export function buildFallbackWeather(city: CityLocation): WeatherSnapshot {
   });
 
   const daily: DailyPoint[] = Array.from({ length: 7 }, (_, idx) => {
-    const d = new Date(now.getTime() + idx * 86400000);
-    const dateStr = d.toISOString().slice(0, 10);
+    const d = new Date(now.getTime() + idx * 86400_000);
+    const dateStr = formatLocalYmd(d);
     const delta = ((idx * 3) % 5) - 2;
+    const cond = idx === 2 ? 'rain' : idx === 4 ? 'partly-cloudy' : preset.cond;
     return {
       date: dateStr,
       dayLabel: formatDayLabel(dateStr, idx),
-      condition: idx === 2 ? 'rain' : idx === 4 ? 'partly-cloudy' : preset.cond,
+      condition: cond,
       tempMax: preset.temp + 4 + delta,
       tempMin: preset.temp - 4 + delta,
       precipitationProb: idx === 2 ? 75 : 20,
       uvIndexMax: preset.cond === 'clear' ? 6 : 3,
+      windSpeedMax: preset.wind + (idx % 3) * 3,
+      precipitationSum: idx === 2 ? 6.4 : 0,
     };
   });
 
@@ -349,11 +449,46 @@ export function buildFallbackWeather(city: CityLocation): WeatherSnapshot {
     updatedAt: `${String(hour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} (离线示例)`,
     hourly,
     daily,
+    airQuality: classifyAirQuality(preset.aqi, Math.round(preset.aqi * 0.42), Math.round(preset.aqi * 0.72)),
     isOfflineFallback: true,
   };
 }
 
-export async function fetchLiveWeather(city: CityLocation): Promise<WeatherSnapshot> {
+async function fetchAirQualitySafe(
+  latitude: number,
+  longitude: number,
+  externalSignal?: AbortSignal
+): Promise<AirQualityInfo | undefined> {
+  const { signal, cleanup } = createCombinedSignal(5000, externalSignal);
+  try {
+    const url = new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
+    url.searchParams.set('latitude', String(latitude));
+    url.searchParams.set('longitude', String(longitude));
+    url.searchParams.set('current', 'us_aqi,pm2_5,pm10');
+    const res = await fetch(url.toString(), { signal });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as {
+      current?: {
+        us_aqi?: number;
+        pm2_5?: number;
+        pm10?: number;
+      };
+    };
+    const aqi = data.current?.us_aqi;
+    if (typeof aqi !== 'number') return undefined;
+    return classifyAirQuality(aqi, data.current?.pm2_5 ?? 0, data.current?.pm10 ?? 0);
+  } catch {
+    return undefined;
+  } finally {
+    cleanup();
+  }
+}
+
+export async function fetchLiveWeather(
+  city: CityLocation,
+  externalSignal?: AbortSignal
+): Promise<WeatherSnapshot> {
+  const { signal, cleanup } = createCombinedSignal(8000, externalSignal);
   try {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(city.latitude));
@@ -378,15 +513,30 @@ export async function fetchLiveWeather(city: CityLocation): Promise<WeatherSnaps
     );
     url.searchParams.set(
       'daily',
-      ['weather_code', 'temperature_2m_max', 'temperature_2m_min', 'sunrise', 'sunset', 'uv_index_max', 'precipitation_probability_max'].join(',')
+      [
+        'weather_code',
+        'temperature_2m_max',
+        'temperature_2m_min',
+        'sunrise',
+        'sunset',
+        'uv_index_max',
+        'precipitation_probability_max',
+        'wind_speed_10m_max',
+        'precipitation_sum',
+      ].join(',')
     );
     url.searchParams.set('timezone', city.timezone || 'auto');
     url.searchParams.set('forecast_days', '7');
 
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(`Weather API error: ${res.status}`);
+    const [weatherRes, airQuality] = await Promise.all([
+      fetch(url.toString(), { signal }),
+      fetchAirQualitySafe(city.latitude, city.longitude, externalSignal),
+    ]);
 
-    const data = (await res.json()) as {
+    if (!weatherRes.ok) throw new Error(`Weather API error: ${weatherRes.status}`);
+
+    const data = (await weatherRes.json()) as {
+      timezone?: string;
       current: {
         time: string;
         temperature_2m: number;
@@ -417,8 +567,15 @@ export async function fetchLiveWeather(city: CityLocation): Promise<WeatherSnaps
         sunset: string[];
         uv_index_max: number[];
         precipitation_probability_max: number[];
+        wind_speed_10m_max?: number[];
+        precipitation_sum?: number[];
       };
     };
+
+    const resolvedCity: CityLocation =
+      !city.timezone || city.timezone === 'auto'
+        ? { ...city, timezone: data.timezone || city.timezone }
+        : city;
 
     const current = data.current;
     const isDay = current.is_day === 1;
@@ -433,7 +590,7 @@ export async function fetchLiveWeather(city: CityLocation): Promise<WeatherSnaps
       data.hourly.time.findIndex((t) => t.startsWith(currentHourPrefix))
     );
 
-    const hourly: HourlyPoint[] = data.hourly.time.slice(startIdx, startIdx + 12).map((t, idx) => {
+    const hourly: HourlyPoint[] = data.hourly.time.slice(startIdx, startIdx + 24).map((t, idx) => {
       const realIdx = startIdx + idx;
       return {
         time: t,
@@ -453,13 +610,21 @@ export async function fetchLiveWeather(city: CityLocation): Promise<WeatherSnaps
       tempMin: Math.round(data.daily.temperature_2m_min[idx] ?? current.temperature_2m),
       precipitationProb: Math.round(data.daily.precipitation_probability_max[idx] ?? 0),
       uvIndexMax: Math.round((data.daily.uv_index_max[idx] ?? 0) * 10) / 10,
+      windSpeedMax:
+        typeof data.daily.wind_speed_10m_max?.[idx] === 'number'
+          ? Math.round(data.daily.wind_speed_10m_max[idx])
+          : undefined,
+      precipitationSum:
+        typeof data.daily.precipitation_sum?.[idx] === 'number'
+          ? Math.round(data.daily.precipitation_sum[idx] * 10) / 10
+          : undefined,
     }));
 
     const visibilityMeters = data.hourly.visibility?.[startIdx] ?? 16000;
     const currentUv = data.hourly.uv_index?.[startIdx] ?? 0;
 
     return {
-      city,
+      city: resolvedCity,
       temperature: Math.round(current.temperature_2m),
       apparentTemperature: Math.round(current.apparent_temperature),
       humidity: Math.round(current.relative_humidity_2m),
@@ -478,8 +643,54 @@ export async function fetchLiveWeather(city: CityLocation): Promise<WeatherSnaps
       updatedAt: current.time.slice(11, 16) || '刚刚',
       hourly,
       daily,
+      airQuality,
     };
-  } catch {
+  } catch (err) {
+    if (externalSignal?.aborted) {
+      throw err;
+    }
     return buildFallbackWeather(city);
+  } finally {
+    cleanup();
+  }
+}
+
+export async function fetchCitiesBriefWeather(
+  cities: CityLocation[]
+): Promise<Record<string, CityBriefWeather>> {
+  if (cities.length === 0) return {};
+  try {
+    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    url.searchParams.set(
+      'latitude',
+      cities.map((c) => c.latitude.toFixed(4)).join(',')
+    );
+    url.searchParams.set(
+      'longitude',
+      cities.map((c) => c.longitude.toFixed(4)).join(',')
+    );
+    url.searchParams.set('current', 'temperature_2m,weather_code,is_day');
+    url.searchParams.set('timezone', 'auto');
+
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return {};
+    const raw = (await res.json()) as
+      | { current?: { temperature_2m: number; weather_code: number; is_day: number } }
+      | Array<{ current?: { temperature_2m: number; weather_code: number; is_day: number } }>;
+
+    const list = Array.isArray(raw) ? raw : [raw];
+    const map: Record<string, CityBriefWeather> = {};
+    cities.forEach((city, idx) => {
+      const cur = list[idx]?.current;
+      if (!cur) return;
+      map[cityCoordKey(city)] = {
+        temperature: Math.round(cur.temperature_2m),
+        condition: mapWmoCodeToCondition(cur.weather_code, 10),
+        isDay: cur.is_day === 1,
+      };
+    });
+    return map;
+  } catch {
+    return {};
   }
 }

@@ -9,7 +9,7 @@
     "build:pages": "vite build --mode pages",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/data/outfits.test.ts src/services/weatherApi.test.ts"
+    "test": "tsx --test src/data/outfits.test.ts src/services/weatherApi.test.ts src/utils/weatherHelpers.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",

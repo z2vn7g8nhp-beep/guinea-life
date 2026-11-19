@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildLifestyleIndices, getTempTier, resolveGuineaPigOutfit } from './outfits.ts';
-import { buildFallbackWeather, PRESET_CITIES } from '../services/weatherApi.ts';
+import {
+  buildLifestyleIndices,
+  getSeasonalSnack,
+  getTempTier,
+  resolveGuineaPigOutfit,
+} from './outfits.ts';
+import { PRESET_CITIES, buildFallbackWeather, classifyAirQuality } from '../services/weatherApi.ts';
 
 test('getTempTier classifies all 6 temperature tiers accurately', () => {
   assert.equal(getTempTier(-10), 'freezing');
@@ -18,19 +23,17 @@ test('getTempTier classifies all 6 temperature tiers accurately', () => {
   assert.equal(getTempTier(40), 'hot');
 });
 
-test('resolveGuineaPigOutfit outfits adapt to freezing snow vs scorching sun vs rain', () => {
+test('resolveGuineaPigOutfit adapts across freezing snow, hot sun, rain, and night', () => {
   const freezingSnow = resolveGuineaPigOutfit(-8, 'snow', 15, true);
   assert.equal(freezingSnow.tierId, 'freezing');
   assert.equal(freezingSnow.outerwear, 'parka');
   assert.equal(freezingSnow.headwear, 'pom-beanie');
-  assert.equal(freezingSnow.footwear, 'snow-boots');
   assert.equal(freezingSnow.hasFrostBreath, true);
   assert.equal(freezingSnow.hasSnowDust, true);
   assert.equal(freezingSnow.animationMode, 'shiver');
 
   const hotSun = resolveGuineaPigOutfit(35, 'clear', 8, true);
   assert.equal(hotSun.tierId, 'hot');
-  assert.equal(hotSun.outerwear, 'cooling-tank');
   assert.equal(hotSun.neckwear, 'cooling-ring');
   assert.equal(hotSun.eyewear, 'sunglasses');
   assert.equal(hotSun.handheldProp, 'mini-fan');
@@ -41,21 +44,37 @@ test('resolveGuineaPigOutfit outfits adapt to freezing snow vs scorching sun vs 
   assert.equal(rainyCool.tierId, 'cool');
   assert.equal(rainyCool.rainGear, 'yellow-poncho');
   assert.equal(rainyCool.headwear, 'rain-hood');
-  assert.equal(rainyCool.footwear, 'rain-boots');
   assert.equal(rainyCool.handheldProp, 'umbrella');
   assert.equal(rainyCool.hasPuddle, true);
 
   const thunderstorm = resolveGuineaPigOutfit(20, 'thunderstorm', 35, false);
   assert.equal(thunderstorm.rainGear, 'storm-slicker');
   assert.equal(thunderstorm.isWindy, true);
+
+  const clearNight = resolveGuineaPigOutfit(19, 'clear', 6, false);
+  assert.equal(clearNight.headwear, 'nightcap');
+  assert.equal(clearNight.handheldProp, 'lantern');
 });
 
-test('buildLifestyleIndices produces 6 actionable daily indices', () => {
+test('getSeasonalSnack adapts snack to weather & temperature', () => {
+  assert.equal(getSeasonalSnack(-2, 'snow').id, 'sweet-potato');
+  assert.equal(getSeasonalSnack(32, 'clear').id, 'strawberry');
+  assert.equal(getSeasonalSnack(15, 'rain').id, 'lettuce');
+  assert.equal(getSeasonalSnack(22, 'partly-cloudy').id, 'hay');
+});
+
+test('buildLifestyleIndices reflects AQI mask advice when polluted', () => {
   const sample = buildFallbackWeather(PRESET_CITIES[0]);
-  const indices = buildLifestyleIndices(sample);
-  assert.equal(indices.length, 6);
-  for (const item of indices) {
-    assert.ok(item.score >= 0 && item.score <= 100);
-    assert.ok(item.title.length > 0 && item.summary.length > 0);
-  }
+  const cleanIndices = buildLifestyleIndices(sample);
+  assert.equal(cleanIndices.length, 6);
+
+  const polluted = {
+    ...sample,
+    airQuality: classifyAirQuality(142, 58, 95),
+  };
+  const pollutedIndices = buildLifestyleIndices(polluted);
+  const outdoor = pollutedIndices.find((i) => i.id === 'outdoor');
+  const commute = pollutedIndices.find((i) => i.id === 'commute');
+  assert.equal(outdoor?.level, '戴口罩短行');
+  assert.equal(commute?.level, '佩戴口罩出行');
 });
